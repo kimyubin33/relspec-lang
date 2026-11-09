@@ -1,0 +1,18 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "KPL Rust 컴파일러 실행",
+      "type": "cppvsdbg",
+      "request": "launch",
+      "preLaunchTask": "KPL Rust 컴파일러 빌드",
+      "program": "${workspaceFolder}/target/debug/kpl.exe",
+      "args": [
+        "검사",
+        "${workspaceFolder}/examples/첫파일.kpl"
+      ],
+      "cwd": "${workspaceFolder}",
+      "console": "integratedTerminal"
+    }
+  ]
+}
