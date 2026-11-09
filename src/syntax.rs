@@ -10,8 +10,16 @@ const MAX_TOKENS_PER_LINE: usize = 128;
 pub(crate) enum Type {
     Integer,
     Boolean,
+    /// 지속 시간(두 시각의 차이). 0.1의 `시간` 타입과 같은 값입니다.
     Time,
+    /// 길이(두 위치의 차이).
     Distance,
+    /// 시간축 기준 위의 한 점.
+    Instant,
+    /// 위치축 기준 위의 한 점.
+    Position,
+    /// 사건에 참여하는 이름 있는 대상.
+    Entity,
 }
 
 impl Type {
@@ -21,14 +29,55 @@ impl Type {
             Self::Boolean => "논리",
             Self::Time => "시간",
             Self::Distance => "거리",
+            Self::Instant => "시각",
+            Self::Position => "위치",
+            Self::Entity => "대상",
         }
     }
 
     pub(crate) fn base_unit(self) -> Option<&'static str> {
         match self {
-            Self::Time => Some("밀리초"),
-            Self::Distance => Some("밀리미터"),
+            Self::Time | Self::Instant => Some("밀리초"),
+            Self::Distance | Self::Position => Some("밀리미터"),
             _ => None,
+        }
+    }
+
+    /// 기준 위의 점이면 그 점들의 차이에 해당하는 타입을 돌려줍니다.
+    pub(crate) fn displacement(self) -> Option<Type> {
+        match self {
+            Self::Instant => Some(Self::Time),
+            Self::Position => Some(Self::Distance),
+            _ => None,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Axis {
+    Time,
+    Space,
+}
+
+impl Axis {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Time => "시간축",
+            Self::Space => "위치축",
+        }
+    }
+
+    pub(crate) fn point(self) -> Type {
+        match self {
+            Self::Time => Type::Instant,
+            Self::Space => Type::Position,
+        }
+    }
+
+    pub(crate) fn offset(self) -> Type {
+        match self {
+            Self::Time => Type::Time,
+            Self::Space => Type::Distance,
         }
     }
 }
@@ -43,12 +92,18 @@ pub(crate) enum Kind {
     Type(Type),
     Define,
     Check,
+    Frame,
+    Event,
+    Axis(Axis),
     True,
     False,
     And,
     Or,
     Not,
     Colon,
+    Comma,
+    Dot,
+    At,
     Assign,
     LeftParen,
     RightParen,
@@ -86,6 +141,13 @@ fn classify_name(name: &str) -> Kind {
     match name {
         "정의" => Kind::Define,
         "검사" => Kind::Check,
+        "기준" => Kind::Frame,
+        "사건" => Kind::Event,
+        "시간축" => Kind::Axis(Axis::Time),
+        "위치축" => Kind::Axis(Axis::Space),
+        "시각" => Kind::Type(Type::Instant),
+        "위치" => Kind::Type(Type::Position),
+        "대상" => Kind::Type(Type::Entity),
         "참" => Kind::True,
         "거짓" => Kind::False,
         "그리고" => Kind::And,
@@ -191,6 +253,9 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                 }
                 kind = match (ch, followed_by_equals) {
                     (':', _) => Kind::Colon,
+                    (',', _) => Kind::Comma,
+                    ('.', _) => Kind::Dot,
+                    ('@', _) => Kind::At,
                     ('(', _) => Kind::LeftParen,
                     (')', _) => Kind::RightParen,
                     ('+', _) => Kind::Plus,
@@ -246,10 +311,33 @@ pub(crate) enum Expression {
     Reference(Token),
     Unary(Token, Box<Expression>),
     Binary(Token, Box<Expression>, Box<Expression>),
+    /// `기준 @ 값`: 기준 위의 점을 만듭니다.
+    Anchor(Token, Token, Box<Expression>),
+    /// `사건.역할`: 사건에 연결된 역할 값을 읽습니다.
+    Member(Token, Token),
 }
 
-pub(crate) struct Statement {
+pub(crate) struct Role {
     pub(crate) name: Token,
-    pub(crate) declared_type: Option<Type>,
     pub(crate) expression: Expression,
+}
+
+pub(crate) enum Statement {
+    /// `정의`(타입 있음)와 `검사`(타입 없음).
+    Value {
+        name: Token,
+        declared_type: Option<Type>,
+        expression: Expression,
+    },
+    Frame {
+        name: Token,
+        axis: Axis,
+    },
+    Entity {
+        name: Token,
+    },
+    Event {
+        name: Token,
+        roles: Vec<Role>,
+    },
 }

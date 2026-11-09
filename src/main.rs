@@ -1,6 +1,6 @@
 use std::{env, fs, io, path::Path, process::ExitCode};
 
-const USAGE: &str = "KPL 0.1\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
+const USAGE: &str = "KPL 0.2\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();
@@ -55,10 +55,20 @@ fn main() -> ExitCode {
             .iter()
             .filter(|statement| statement.kind == "검사")
             .count();
-        println!(
+        let mut summary = format!(
             "검사 통과 | 정의 {}개, 검사 {checks}개",
             program.statements.len() - checks
         );
+        for (label, count) in [
+            ("기준", program.frames.len()),
+            ("대상", program.entities.len()),
+            ("사건", program.events.len()),
+        ] {
+            if count > 0 {
+                summary.push_str(&format!(", {label} {count}개"));
+            }
+        }
+        println!("{summary}");
     }
     ExitCode::SUCCESS
 }

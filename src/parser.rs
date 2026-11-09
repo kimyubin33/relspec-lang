@@ -1,6 +1,6 @@
 use crate::Diagnostic;
 use crate::integer::Integer;
-use crate::syntax::{Expression, Kind, Statement, Token, Type};
+use crate::syntax::{Expression, Kind, Role, Statement, Token, Type};
 
 pub(crate) fn parse(tokens: &[Token]) -> Result<Vec<Statement>, Diagnostic> {
     Parser { tokens, index: 0 }.parse()
@@ -21,34 +21,23 @@ impl Parser<'_> {
                 continue;
             }
 
-            if !matches!(self.current().kind, Kind::Define | Kind::Check) {
-                return Err(self
-                    .current()
-                    .error("K200", "'정의' 또는 '검사'로 줄을 시작하세요."));
-            }
-
-            let declaration = self.take().kind;
-            let name = self.expect(Kind::Identifier, "선언할 이름을 적으세요.")?;
-            let declared_type = if declaration == Kind::Define {
-                self.expect(Kind::Colon, "이름 뒤에 ':'와 타입을 적으세요.")?;
-                let Kind::Type(kind) = self.current().kind else {
-                    return Err(self
-                        .current()
-                        .error("K200", "타입은 정수, 논리, 시간, 거리 중 하나입니다."));
-                };
-                self.take();
-                Some(kind)
-            } else {
-                None
+            let statement = match self.current().kind {
+                Kind::Define | Kind::Check => self.value_statement()?,
+                Kind::Frame => self.frame_statement()?,
+                Kind::Type(Type::Entity) => {
+                    self.take();
+                    let name = self.expect(Kind::Identifier, "선언할 대상의 이름을 적으세요.")?;
+                    Statement::Entity { name }
+                }
+                Kind::Event => self.event_statement()?,
+                _ => {
+                    return Err(self.current().error(
+                        "K200",
+                        "'정의', '검사', '기준', '대상', '사건' 중 하나로 줄을 시작하세요.",
+                    ));
+                }
             };
-
-            self.expect(Kind::Assign, "식 앞에 '='를 적으세요.")?;
-            let expression = self.expression(1)?;
-            statements.push(Statement {
-                name,
-                declared_type,
-                expression,
-            });
+            statements.push(statement);
 
             if !matches!(self.current().kind, Kind::NewLine | Kind::End) {
                 return Err(self.current().error(
@@ -62,6 +51,76 @@ impl Parser<'_> {
             return Err(self.current().error("K201", "적어도 한 문장을 작성하세요."));
         }
         Ok(statements)
+    }
+
+    fn value_statement(&mut self) -> Result<Statement, Diagnostic> {
+        let declaration = self.take().kind;
+        let name = self.expect(Kind::Identifier, "선언할 이름을 적으세요.")?;
+        let declared_type = if declaration == Kind::Define {
+            self.expect(Kind::Colon, "이름 뒤에 ':'와 타입을 적으세요.")?;
+            let Kind::Type(kind) = self.current().kind else {
+                return Err(self.current().error(
+                    "K200",
+                    "타입은 정수, 논리, 시간, 거리, 시각, 위치, 대상 중 하나입니다.",
+                ));
+            };
+            self.take();
+            Some(kind)
+        } else {
+            None
+        };
+
+        self.expect(Kind::Assign, "식 앞에 '='를 적으세요.")?;
+        let expression = self.expression(1)?;
+        Ok(Statement::Value {
+            name,
+            declared_type,
+            expression,
+        })
+    }
+
+    fn frame_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.take();
+        let name = self.expect(Kind::Identifier, "선언할 기준의 이름을 적으세요.")?;
+        self.expect(
+            Kind::Colon,
+            "기준 이름 뒤에 ':'와 '시간축' 또는 '위치축'을 적으세요.",
+        )?;
+        let Kind::Axis(axis) = self.current().kind else {
+            return Err(self
+                .current()
+                .error("K200", "기준의 종류는 '시간축' 또는 '위치축'입니다."));
+        };
+        self.take();
+        Ok(Statement::Frame { name, axis })
+    }
+
+    fn event_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.take();
+        let name = self.expect(Kind::Identifier, "선언할 사건의 이름을 적으세요.")?;
+        self.expect(Kind::Colon, "사건 이름 뒤에 ':'와 역할을 적으세요.")?;
+        let mut roles = Vec::new();
+        loop {
+            let role = match self.current().kind {
+                Kind::Identifier | Kind::Type(Type::Entity) => self.take(),
+                _ => {
+                    return Err(self
+                        .current()
+                        .error("K200", "'시작 = 값'처럼 역할 이름과 값을 적으세요."));
+                }
+            };
+            self.expect(Kind::Assign, "역할 이름 뒤에 '='를 적으세요.")?;
+            let expression = self.expression(1)?;
+            roles.push(Role {
+                name: role,
+                expression,
+            });
+            if self.current().kind != Kind::Comma {
+                break;
+            }
+            self.take();
+        }
+        Ok(Statement::Event { name, roles })
     }
 
     fn expression(&mut self, minimum: u8) -> Result<Expression, Diagnostic> {
@@ -91,7 +150,28 @@ impl Parser<'_> {
                 let bit = u32::from(self.take().kind == Kind::True);
                 Ok(Expression::Literal(Type::Boolean, Integer::from_small(bit)))
             }
-            Kind::Identifier => Ok(Expression::Reference(self.take())),
+            Kind::Identifier => {
+                let name = self.take();
+                match self.current().kind {
+                    Kind::Dot => {
+                        self.take();
+                        let field = match self.current().kind {
+                            Kind::Identifier | Kind::Type(Type::Entity) => self.take(),
+                            _ => {
+                                return Err(self
+                                    .current()
+                                    .error("K200", "'.' 뒤에 역할 이름을 적으세요."));
+                            }
+                        };
+                        Ok(Expression::Member(name, field))
+                    }
+                    Kind::At => {
+                        let at = self.take();
+                        Ok(Expression::Anchor(name, at, Box::new(self.prefix()?)))
+                    }
+                    _ => Ok(Expression::Reference(name)),
+                }
+            }
             Kind::Minus | Kind::Not => {
                 let op = self.take();
                 Ok(Expression::Unary(op, Box::new(self.prefix()?)))
