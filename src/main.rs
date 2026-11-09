@@ -1,6 +1,6 @@
 use std::{env, fs, io, path::Path, process::ExitCode};
 
-const USAGE: &str = "KPL 0.3\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
+const USAGE: &str = "KPL 0.4\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();
@@ -72,6 +72,9 @@ fn main() -> ExitCode {
             ("미지", program.unknowns.len()),
             ("조건·관측", program.constraints.len()),
             ("목표", program.goals.len()),
+            ("행위", program.verbs.len()),
+            ("문장", program.sentences.len()),
+            ("참조", program.references.len()),
         ] {
             if count > 0 {
                 summary.push_str(&format!(", {label} {count}개"));

@@ -20,6 +20,8 @@ pub(crate) enum Type {
     Position,
     /// 사건에 참여하는 이름 있는 대상.
     Entity,
+    /// 퍼지 논리의 참 정도(0%~100%).
+    Degree,
 }
 
 impl Type {
@@ -32,6 +34,7 @@ impl Type {
             Self::Instant => "시각",
             Self::Position => "위치",
             Self::Entity => "대상",
+            Self::Degree => "정도",
         }
     }
 
@@ -98,6 +101,10 @@ pub(crate) enum Kind {
     Assume,
     Goal,
     Observe,
+    Verb,
+    Reference,
+    /// `참조 N:` 뒤의 본문. 낱말로 나누지 않고 그대로 보관합니다.
+    Text,
     Axis(Axis),
     True,
     False,
@@ -109,6 +116,7 @@ pub(crate) enum Kind {
     Dot,
     At,
     Question,
+    Percent,
     Assign,
     LeftParen,
     RightParen,
@@ -132,6 +140,10 @@ pub(crate) struct Token {
 }
 
 impl Token {
+    pub(crate) fn line(&self) -> usize {
+        self.line
+    }
+
     pub(crate) fn error(&self, code: &'static str, message: impl Into<String>) -> Diagnostic {
         Diagnostic {
             code,
@@ -152,6 +164,9 @@ fn classify_name(name: &str) -> Kind {
         "조건" => Kind::Assume,
         "목표" => Kind::Goal,
         "관측" => Kind::Observe,
+        "행위" => Kind::Verb,
+        "참조" => Kind::Reference,
+        "정도" => Kind::Type(Type::Degree),
         "시간축" => Kind::Axis(Axis::Time),
         "위치축" => Kind::Axis(Axis::Space),
         "시각" => Kind::Type(Type::Instant),
@@ -266,6 +281,7 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                     ('.', _) => Kind::Dot,
                     ('@', _) => Kind::At,
                     ('?', _) => Kind::Question,
+                    ('%', _) => Kind::Percent,
                     ('(', _) => Kind::LeftParen,
                     (')', _) => Kind::RightParen,
                     ('+', _) => Kind::Plus,
@@ -299,6 +315,33 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                 line,
                 column: token_column,
             });
+
+            // `참조 N:` 뒤는 자유 본문입니다. 주석 기호 `#`도 본문에 포함합니다.
+            let line_tokens = &tokens[tokens.len() - count..];
+            if count == 3
+                && matches!(
+                    line_tokens
+                        .iter()
+                        .map(|t| t.kind)
+                        .collect::<Vec<_>>()
+                        .as_slice(),
+                    [Kind::Reference, Kind::Number, Kind::Colon]
+                )
+            {
+                let rest = characters
+                    .peek()
+                    .map_or(text.len(), |&(position, _)| position);
+                let body = &text[rest..];
+                let leading = body.len() - body.trim_start().len();
+                let body_column = column + body[..leading].encode_utf16().count();
+                tokens.push(Token {
+                    kind: Kind::Text,
+                    text: normalizer.normalize(body.trim()).into_owned(),
+                    line,
+                    column: body_column,
+                });
+                break;
+            }
         }
 
         let kind = if lines.peek().is_some() {
@@ -366,5 +409,21 @@ pub(crate) enum Statement {
     Observe {
         name: Token,
         expression: Expression,
+    },
+    /// `행위 설계하다 (설계했다): 주체, 대상`
+    Verb {
+        name: Token,
+        forms: Vec<Token>,
+        required: Vec<Token>,
+    },
+    /// `참조 1: 본문`
+    ReferenceDefinition {
+        number: Token,
+        text: Token,
+    },
+    /// 키워드로 시작하지 않는 줄. `이름: 문장`처럼 이름을 붙일 수 있습니다.
+    Sentence {
+        label: Option<Token>,
+        tokens: Vec<Token>,
     },
 }

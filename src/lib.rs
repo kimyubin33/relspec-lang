@@ -1,5 +1,6 @@
 mod integer;
 mod parser;
+mod sentence;
 mod solver;
 mod syntax;
 
@@ -11,7 +12,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.3";
+pub const LANGUAGE_VERSION: &str = "0.4";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -159,6 +160,52 @@ pub struct IrGoal {
 }
 
 #[derive(Serialize)]
+pub struct IrVerb {
+    pub name: String,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub forms: Vec<String>,
+    pub required: Vec<&'static str>,
+}
+
+#[derive(Serialize)]
+pub struct IrReference {
+    pub number: u32,
+    pub text: String,
+}
+
+#[derive(Serialize)]
+pub struct IrSentenceRole {
+    pub role: String,
+    pub particle: String,
+    #[serde(rename = "type")]
+    pub value_type: &'static str,
+    pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub unit: Option<&'static str>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub frame: Option<String>,
+    /// 지시어(이렇게, 이것)가 가리키는 참조 번호.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub reference: Option<u32>,
+}
+
+#[derive(Serialize)]
+pub struct IrSentence {
+    pub line: usize,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
+    /// 행위의 기본형
+    pub verb: String,
+    /// 문장에 쓰인 활용형
+    pub form: String,
+    /// 문장이 참인 정도(퍼센트). 적지 않으면 100입니다.
+    pub degree: u32,
+    pub roles: Vec<IrSentenceRole>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<u32>,
+}
+
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CompiledProgram {
     pub language_version: &'static str,
@@ -175,6 +222,12 @@ pub struct CompiledProgram {
     pub constraints: Vec<IrConstraint>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub goals: Vec<IrGoal>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub verbs: Vec<IrVerb>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub sentences: Vec<IrSentence>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<IrReference>,
 }
 
 /// 사건이 받을 수 있는 역할과 각 역할의 값 종류.
@@ -202,8 +255,13 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         unknowns: Vec::new(),
         constraints: Vec::new(),
         goals: Vec::new(),
+        verbs: Vec::new(),
+        sentences: Vec::new(),
+        references: Vec::new(),
     };
     let mut pending = Vec::new();
+    let mut verbs: Vec<sentence::Verb> = Vec::new();
+    let mut citations: Vec<(u32, Token)> = Vec::new();
 
     for statement in statements {
         let name = match &statement {
@@ -213,8 +271,12 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             | Statement::Event { name, .. }
             | Statement::Unknown { name, .. }
             | Statement::Constraint { name, .. } => Some(name),
+            Statement::Sentence { label, .. } => label.as_ref(),
             // 관측은 새 이름을 만들지 않고 미지값에 값을 기록합니다.
-            Statement::Observe { .. } => None,
+            // 행위와 참조는 값과 다른 이름 공간을 씁니다.
+            Statement::Observe { .. }
+            | Statement::Verb { .. }
+            | Statement::ReferenceDefinition { .. } => None,
         };
         if let Some(name) = name
             && !names.insert(name.text.clone())
@@ -372,6 +434,48 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     expression: judged.ir,
                 });
             }
+            Statement::Verb {
+                name,
+                forms,
+                required,
+            } => {
+                if verbs.iter().any(|v| v.name == name.text) {
+                    return Err(name.error(
+                        "K301",
+                        format!("행위 '{}'이 이미 선언되어 있습니다.", name.text),
+                    ));
+                }
+                let verb = sentence::Verb::new(&name, &forms, &required)?;
+                program.verbs.push(IrVerb {
+                    name: name.text,
+                    forms: forms.into_iter().map(|f| f.text).collect(),
+                    required: verb.required.clone(),
+                });
+                verbs.push(verb);
+            }
+            Statement::ReferenceDefinition { number, text } => {
+                let Ok(n) = number.text.parse::<u32>() else {
+                    return Err(number.error("K511", "참조 번호가 너무 큽니다."));
+                };
+                if program.references.iter().any(|r| r.number == n) {
+                    return Err(number.error("K512", format!("참조 {n}이 이미 정의되어 있습니다.")));
+                }
+                program.references.push(IrReference {
+                    number: n,
+                    text: text.text,
+                });
+            }
+            Statement::Sentence { label, tokens } => {
+                let bound = sentence::bind_sentence(label.as_ref(), &tokens, &scope, &verbs)?;
+                citations.extend(bound.citations);
+                if let Some(label) = label {
+                    scope.values.insert(
+                        label.text,
+                        Value::plain(Type::Degree, Integer::from_small(bound.degree)),
+                    );
+                }
+                program.sentences.push(bound.ir);
+            }
             Statement::Observe { name, expression } => {
                 let Some(&node) = scope.unknown_ids.get(&name.text) else {
                     if scope.values.contains_key(&name.text) {
@@ -429,6 +533,15 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     expression: ir,
                 });
             }
+        }
+    }
+
+    for (number, token) in &citations {
+        if !program.references.iter().any(|r| r.number == *number) {
+            return Err(token.error(
+                "K511",
+                format!("참조 {number}이 정의되지 않았습니다. '참조 {number}: 내용'을 적으세요."),
+            ));
         }
     }
 
@@ -881,6 +994,7 @@ impl Value {
             }
             .into(),
             Type::Entity => self.label.clone().unwrap_or_default(),
+            Type::Degree => format!("{}%", self.number),
             _ => self.number.to_string(),
         }
     }
@@ -1248,6 +1362,11 @@ fn evaluate_unary(op: &Token, value: Value, scope: &Scope) -> Result<Value, Diag
             Ok(value.negated())
         }
         Kind::Not if value.kind == Type::Boolean => Ok(Value::logical(value.number.is_zero())),
+        // 퍼지 부정: 100% - 정도
+        Kind::Not if value.kind == Type::Degree => Ok(Value::plain(
+            Type::Degree,
+            Integer::from_small(100).sub(&value.number),
+        )),
         _ => Err(op.error(
             "K304",
             format!(
@@ -1256,6 +1375,14 @@ fn evaluate_unary(op: &Token, value: Value, scope: &Scope) -> Result<Value, Diag
                 scope.describe(&value),
             ),
         )),
+    }
+}
+
+fn as_degree(value: &Value) -> Integer {
+    if value.kind == Type::Boolean {
+        Integer::from_small(if value.number.is_zero() { 0 } else { 100 })
+    } else {
+        value.number.clone()
     }
 }
 
@@ -1403,7 +1530,7 @@ fn evaluate_fixed(
         Kind::Less | Kind::LessEqual | Kind::Greater | Kind::GreaterEqual => {
             if point {
                 same_frame(op, left, right, scope)?;
-            } else if !vector {
+            } else if !(vector || (l == r && l == Degree)) {
                 return Err(mismatch());
             }
             Value::logical(match op.kind {
@@ -1419,6 +1546,16 @@ fn evaluate_fixed(
             }
             same_frame(op, left, right, scope)?;
             Value::logical((a == b) == (op.kind == Kind::Equal))
+        }
+        // 퍼지 논리(Zadeh): 그리고 = 최솟값, 또는 = 최댓값. 논리값은 참 100%, 거짓 0%로 봅니다.
+        Kind::And | Kind::Or
+            if matches!(l, Boolean | Degree)
+                && matches!(r, Boolean | Degree)
+                && (l == Degree || r == Degree) =>
+        {
+            let (x, y) = (as_degree(left), as_degree(right));
+            let pick_left = if op.kind == Kind::And { x <= y } else { x >= y };
+            Value::plain(Degree, if pick_left { x } else { y })
         }
         Kind::And if l == Boolean && r == Boolean => Value::logical(!a.is_zero() && !b.is_zero()),
         Kind::Or if l == Boolean && r == Boolean => Value::logical(!a.is_zero() || !b.is_zero()),

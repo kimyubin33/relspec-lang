@@ -49,11 +49,36 @@ impl Parser<'_> {
                     let expression = self.expression(1)?;
                     Statement::Observe { name, expression }
                 }
+                Kind::Verb => self.verb_statement()?,
+                Kind::Reference => {
+                    self.take();
+                    let number = self.expect(Kind::Number, "'참조' 뒤에 번호를 적으세요.")?;
+                    self.expect(Kind::Colon, "참조 번호 뒤에 ':'와 본문을 적으세요.")?;
+                    if self.current().kind != Kind::Text || self.current().text.is_empty() {
+                        return Err(self.current().error("K200", "참조 본문이 비어 있습니다."));
+                    }
+                    let text = self.take();
+                    Statement::ReferenceDefinition { number, text }
+                }
                 _ => {
-                    return Err(self.current().error(
-                        "K200",
-                        "'정의', '검사', '기준', '대상', '사건', '미지', '조건', '목표', '관측' 중 하나로 줄을 시작하세요.",
-                    ));
+                    // 키워드로 시작하지 않는 줄은 문장입니다.
+                    let label = if self.current().kind == Kind::Identifier
+                        && self.tokens[self.index + 1].kind == Kind::Colon
+                    {
+                        let label = self.take();
+                        self.take();
+                        Some(label)
+                    } else {
+                        None
+                    };
+                    let mut tokens = Vec::new();
+                    while !matches!(self.current().kind, Kind::NewLine | Kind::End) {
+                        tokens.push(self.take());
+                    }
+                    if tokens.is_empty() {
+                        return Err(self.current().error("K500", "이름 뒤에 문장을 적으세요."));
+                    }
+                    Statement::Sentence { label, tokens }
                 }
             };
             statements.push(statement);
@@ -80,7 +105,7 @@ impl Parser<'_> {
             let Kind::Type(kind) = self.current().kind else {
                 return Err(self.current().error(
                     "K200",
-                    "타입은 정수, 논리, 시간, 거리, 시각, 위치, 대상 중 하나입니다.",
+                    "타입은 정수, 논리, 시간, 거리, 시각, 위치, 대상, 정도 중 하나입니다.",
                 ));
             };
             self.take();
@@ -163,6 +188,55 @@ impl Parser<'_> {
         Ok(Statement::Unknown { name, kind, frame })
     }
 
+    fn verb_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.take();
+        let name = self.expect(
+            Kind::Identifier,
+            "선언할 행위를 '설계하다'처럼 기본형으로 적으세요.",
+        )?;
+        if !name.text.ends_with('다') || name.text.chars().count() < 2 {
+            return Err(name.error(
+                "K200",
+                "행위는 '설계하다', '떨어지다'처럼 '-다'로 끝나는 기본형으로 선언하세요.",
+            ));
+        }
+        let mut forms = Vec::new();
+        if self.current().kind == Kind::LeftParen {
+            self.take();
+            loop {
+                forms.push(self.expect(Kind::Identifier, "괄호 안에 활용형을 적으세요.")?);
+                if self.current().kind != Kind::Comma {
+                    break;
+                }
+                self.take();
+            }
+            self.expect(Kind::RightParen, "닫는 괄호 ')'가 필요합니다.")?;
+        }
+        let mut required = Vec::new();
+        if self.current().kind == Kind::Colon {
+            self.take();
+            loop {
+                match self.current().kind {
+                    Kind::Identifier | Kind::Type(Type::Entity) => required.push(self.take()),
+                    _ => {
+                        return Err(self
+                            .current()
+                            .error("K200", "':' 뒤에 반드시 있어야 하는 역할을 적으세요."));
+                    }
+                }
+                if self.current().kind != Kind::Comma {
+                    break;
+                }
+                self.take();
+            }
+        }
+        Ok(Statement::Verb {
+            name,
+            forms,
+            required,
+        })
+    }
+
     fn event_statement(&mut self) -> Result<Statement, Diagnostic> {
         self.take();
         let name = self.expect(Kind::Identifier, "선언할 사건의 이름을 적으세요.")?;
@@ -204,7 +278,15 @@ impl Parser<'_> {
     fn prefix(&mut self) -> Result<Expression, Diagnostic> {
         match self.current().kind {
             Kind::Number => {
-                let number = Integer::from_decimal(&self.take().text);
+                let digits = self.take();
+                let number = Integer::from_decimal(&digits.text);
+                if self.current().kind == Kind::Percent {
+                    self.take();
+                    if number > Integer::from_small(100) {
+                        return Err(digits.error("K520", "정도는 0%에서 100% 사이입니다."));
+                    }
+                    return Ok(Expression::Literal(Type::Degree, number));
+                }
                 if let Kind::Unit(kind, factor) = self.current().kind {
                     self.take();
                     return Ok(Expression::Literal(
