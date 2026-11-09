@@ -94,6 +94,10 @@ pub(crate) enum Kind {
     Check,
     Frame,
     Event,
+    Unknown,
+    Assume,
+    Goal,
+    Observe,
     Axis(Axis),
     True,
     False,
@@ -104,6 +108,7 @@ pub(crate) enum Kind {
     Comma,
     Dot,
     At,
+    Question,
     Assign,
     LeftParen,
     RightParen,
@@ -143,6 +148,10 @@ fn classify_name(name: &str) -> Kind {
         "검사" => Kind::Check,
         "기준" => Kind::Frame,
         "사건" => Kind::Event,
+        "미지" => Kind::Unknown,
+        "조건" => Kind::Assume,
+        "목표" => Kind::Goal,
+        "관측" => Kind::Observe,
         "시간축" => Kind::Axis(Axis::Time),
         "위치축" => Kind::Axis(Axis::Space),
         "시각" => Kind::Type(Type::Instant),
@@ -256,6 +265,7 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                     (',', _) => Kind::Comma,
                     ('.', _) => Kind::Dot,
                     ('@', _) => Kind::At,
+                    ('?', _) => Kind::Question,
                     ('(', _) => Kind::LeftParen,
                     (')', _) => Kind::RightParen,
                     ('+', _) => Kind::Plus,
@@ -339,5 +349,22 @@ pub(crate) enum Statement {
     Event {
         name: Token,
         roles: Vec<Role>,
+    },
+    /// `미지 이름: 시간 = ?`, `미지 이름: 시각 = 기준 @ ?`
+    Unknown {
+        name: Token,
+        kind: Type,
+        frame: Option<Token>,
+    },
+    /// `조건`(모든 해가 따라야 하는 가정)과 `목표`(가능·보장 여부를 판정할 식).
+    Constraint {
+        name: Token,
+        goal: bool,
+        expression: Expression,
+    },
+    /// `관측 미지이름 = 값`
+    Observe {
+        name: Token,
+        expression: Expression,
     },
 }

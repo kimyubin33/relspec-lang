@@ -30,10 +30,29 @@ impl Parser<'_> {
                     Statement::Entity { name }
                 }
                 Kind::Event => self.event_statement()?,
+                Kind::Unknown => self.unknown_statement()?,
+                Kind::Assume | Kind::Goal => {
+                    let goal = self.take().kind == Kind::Goal;
+                    let name = self.expect(Kind::Identifier, "선언할 이름을 적으세요.")?;
+                    self.expect(Kind::Assign, "식 앞에 '='를 적으세요.")?;
+                    let expression = self.expression(1)?;
+                    Statement::Constraint {
+                        name,
+                        goal,
+                        expression,
+                    }
+                }
+                Kind::Observe => {
+                    self.take();
+                    let name = self.expect(Kind::Identifier, "관측한 미지값의 이름을 적으세요.")?;
+                    self.expect(Kind::Assign, "이름 뒤에 '='와 관측값을 적으세요.")?;
+                    let expression = self.expression(1)?;
+                    Statement::Observe { name, expression }
+                }
                 _ => {
                     return Err(self.current().error(
                         "K200",
-                        "'정의', '검사', '기준', '대상', '사건' 중 하나로 줄을 시작하세요.",
+                        "'정의', '검사', '기준', '대상', '사건', '미지', '조건', '목표', '관측' 중 하나로 줄을 시작하세요.",
                     ));
                 }
             };
@@ -93,6 +112,55 @@ impl Parser<'_> {
         };
         self.take();
         Ok(Statement::Frame { name, axis })
+    }
+
+    fn unknown_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.take();
+        let name = self.expect(Kind::Identifier, "선언할 미지값의 이름을 적으세요.")?;
+        self.expect(Kind::Colon, "이름 뒤에 ':'와 타입을 적으세요.")?;
+        let Kind::Type(kind) = self.current().kind else {
+            return Err(self.current().error(
+                "K200",
+                "미지값의 타입은 정수, 시간, 거리, 시각, 위치 중 하나입니다.",
+            ));
+        };
+        let type_token = self.take();
+        self.expect(
+            Kind::Assign,
+            "타입 뒤에 '= ?' 또는 '= 기준 @ ?'를 적으세요.",
+        )?;
+        let frame = if self.current().kind == Kind::Identifier {
+            let frame = self.take();
+            self.expect(Kind::At, "기준 이름 뒤에 '@ ?'를 적으세요.")?;
+            Some(frame)
+        } else {
+            None
+        };
+        self.expect(Kind::Question, "알 수 없는 값은 '?'로 적으세요.")?;
+
+        let needs_frame = matches!(kind, Type::Instant | Type::Position);
+        let allowed = matches!(
+            kind,
+            Type::Integer | Type::Time | Type::Distance | Type::Instant | Type::Position
+        );
+        if !allowed {
+            return Err(type_token.error(
+                "K200",
+                "미지값의 타입은 정수, 시간, 거리, 시각, 위치 중 하나입니다.",
+            ));
+        }
+        if needs_frame != frame.is_some() {
+            let message = if needs_frame {
+                format!(
+                    "{}은 기준 위의 점이므로 '= 기준 @ ?'로 적으세요.",
+                    kind.name()
+                )
+            } else {
+                format!("{}은 기준이 필요 없으므로 '= ?'로 적으세요.", kind.name())
+            };
+            return Err(type_token.error("K200", message));
+        }
+        Ok(Statement::Unknown { name, kind, frame })
     }
 
     fn event_statement(&mut self) -> Result<Statement, Diagnostic> {

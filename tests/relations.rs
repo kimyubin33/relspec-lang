@@ -25,7 +25,7 @@ fn instants_and_durations_follow_point_vector_rules() {
          검사 순서 = 종료 > 시작 그리고 소요 == 250 밀리초 그리고 앞당김 == 종료"
     ));
     let ir = serde_json::to_value(&program).unwrap();
-    assert_eq!(ir["languageVersion"], "0.2");
+    assert_eq!(ir["languageVersion"], kpl::LANGUAGE_VERSION);
     assert_eq!(ir["frames"][0]["axis"], "시간축");
     assert_eq!(ir["statements"][1]["value"], "1250");
     assert_eq!(ir["statements"][1]["frame"], "실험시계");
@@ -153,6 +153,7 @@ fn shipped_examples_compile() {
         ("examples/실패/기준혼용.kpl", "K306"),
         ("examples/실패/지속시간을시각으로.kpl", "K307"),
         ("examples/실패/종료가시작보다앞섬.kpl", "K402"),
+        ("examples/실패/규칙과관측충돌.kpl", "K404"),
     ] {
         let source = std::fs::read_to_string(path).unwrap();
         let diagnostic = compile(&source).err().expect(path);
