@@ -103,6 +103,7 @@ pub(crate) enum Kind {
     Observe,
     Verb,
     Reference,
+    Rule,
     /// `참조 N:` 뒤의 본문. 낱말로 나누지 않고 그대로 보관합니다.
     Text,
     Axis(Axis),
@@ -149,7 +150,7 @@ impl Token {
             code,
             line: self.line,
             column: self.column,
-            message: message.into(),
+            message: crate::sentence::fix_particles(&message.into()),
         }
     }
 }
@@ -165,6 +166,7 @@ fn classify_name(name: &str) -> Kind {
         "목표" => Kind::Goal,
         "관측" => Kind::Observe,
         "행위" => Kind::Verb,
+        "규칙" => Kind::Rule,
         "참조" => Kind::Reference,
         "정도" => Kind::Type(Type::Degree),
         "시간축" => Kind::Axis(Axis::Time),
@@ -415,6 +417,14 @@ pub(crate) enum Statement {
         name: Token,
         forms: Vec<Token>,
         required: Vec<Token>,
+    },
+    /// `규칙 깨짐: 떨어짐 이면 80% 곱으로`
+    Rule {
+        name: Token,
+        premise: Expression,
+        strength: Expression,
+        /// `최소로` 또는 `곱으로`. 없으면 두 방식을 모두 계산합니다.
+        method: Option<Token>,
     },
     /// `참조 1: 본문`
     ReferenceDefinition {

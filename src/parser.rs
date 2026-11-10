@@ -50,6 +50,7 @@ impl Parser<'_> {
                     Statement::Observe { name, expression }
                 }
                 Kind::Verb => self.verb_statement()?,
+                Kind::Rule => self.rule_statement()?,
                 Kind::Reference => {
                     self.take();
                     let number = self.expect(Kind::Number, "'참조' 뒤에 번호를 적으세요.")?;
@@ -177,15 +178,51 @@ impl Parser<'_> {
         if needs_frame != frame.is_some() {
             let message = if needs_frame {
                 format!(
-                    "{}은 기준 위의 점이므로 '= 기준 @ ?'로 적으세요.",
+                    "'{}'은 기준 위의 점이므로 '= 기준 @ ?'로 적으세요.",
                     kind.name()
                 )
             } else {
-                format!("{}은 기준이 필요 없으므로 '= ?'로 적으세요.", kind.name())
+                format!("'{}'은 기준이 필요 없으므로 '= ?'로 적으세요.", kind.name())
             };
             return Err(type_token.error("K200", message));
         }
         Ok(Statement::Unknown { name, kind, frame })
+    }
+
+    fn rule_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.take();
+        let name = self.expect(Kind::Identifier, "선언할 규칙의 이름을 적으세요.")?;
+        self.expect(
+            Kind::Colon,
+            "규칙 이름 뒤에 ':'와 '전제 이면 강도'를 적으세요. 예: '규칙 깨짐: 떨어짐 이면 80%'",
+        )?;
+        let premise = self.expression(1)?;
+        if !(self.current().kind == Kind::Identifier && self.current().text == "이면") {
+            return Err(self.current().error(
+                "K200",
+                "전제 뒤에 '이면'과 규칙의 강도를 적으세요. 예: '규칙 깨짐: 떨어짐 이면 80%'",
+            ));
+        }
+        self.take();
+        let strength = self.expression(1)?;
+        let method = match self.current().kind {
+            Kind::Identifier if matches!(self.current().text.as_str(), "최소로" | "곱으로") => {
+                Some(self.take())
+            }
+            Kind::Identifier => {
+                return Err(self.current().error(
+                    "K200",
+                    "규칙의 계산 방식은 '최소로' 또는 '곱으로'입니다. 적지 않으면 두 방식을 모두 계산합니다.",
+                ));
+            }
+            _ => None,
+        };
+        Ok(Statement::Rule {
+            name,
+            premise,
+            strength,
+            method,
+        })
     }
 
     fn verb_statement(&mut self) -> Result<Statement, Diagnostic> {

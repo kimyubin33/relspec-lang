@@ -65,6 +65,20 @@ impl Integer {
         Self::normalized(self.negative ^ rhs.negative, limbs)
     }
 
+    /// 작은 수로 나눈 몫과 나머지. 음이 아닌 수에만 씁니다.
+    pub(crate) fn div_rem_small(&self, divisor: u32) -> (Self, u32) {
+        debug_assert!(!self.negative && divisor > 0);
+        let divisor = u64::from(divisor);
+        let mut remainder = 0u64;
+        let mut limbs = vec![0; self.limbs.len()];
+        for (i, &limb) in self.limbs.iter().enumerate().rev() {
+            let current = remainder * BASE + u64::from(limb);
+            limbs[i] = (current / divisor) as u32;
+            remainder = current % divisor;
+        }
+        (Self::normalized(false, limbs), remainder as u32)
+    }
+
     fn normalized(negative: bool, mut limbs: Vec<u32>) -> Self {
         while limbs.last() == Some(&0) {
             limbs.pop();

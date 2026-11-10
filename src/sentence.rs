@@ -216,6 +216,81 @@ pub(crate) fn josa(word: &str, with_batchim: &str, without: &str) -> String {
     }
 }
 
+/// 진단 메시지에서 따옴표로 묶은 낱말 바로 뒤의 조사를 받침에 맞게 고칩니다.
+/// 예: `'실험시계'은` → `'실험시계'는`, `'유빈'가` → `'유빈'이`.
+/// 따옴표 안의 마지막 글자가 한글 음절이 아니면 그대로 둡니다.
+pub(crate) fn fix_particles(message: &str) -> String {
+    const PAIRS: &[(&str, &str)] = &[
+        ("으로", "로"),
+        ("은", "는"),
+        ("이", "가"),
+        ("을", "를"),
+        ("과", "와"),
+    ];
+    let mut out = String::with_capacity(message.len());
+    let mut rest = message;
+    let mut last_quoted: Option<char> = None;
+    let mut last_char: Option<char> = None;
+    let mut inside = false;
+    while let Some(ch) = rest.chars().next() {
+        rest = &rest[ch.len_utf8()..];
+        out.push(ch);
+        if ch != '\'' {
+            // 괄호·기호는 건너뛰고 마지막 글자로 판단합니다: '시각(실험시계)' → 계
+            if inside {
+                last_char = Some(ch);
+                if ch.is_alphanumeric() {
+                    last_quoted = Some(ch);
+                }
+            }
+            continue;
+        }
+        inside = !inside;
+        if inside {
+            last_quoted = None;
+            last_char = None;
+            continue;
+        }
+        // 닫는 따옴표 뒤: 조사인지 확인합니다. '= 기준 @ ?'처럼 기호로 끝나면 그대로 둡니다.
+        let reading = match last_char {
+            Some(c) if c.is_alphanumeric() => Some(c),
+            Some(')') => last_quoted,
+            _ => None,
+        };
+        let Some((_, _, final_consonant)) = reading.and_then(jamo) else {
+            continue;
+        };
+        for &(with, without) in PAIRS {
+            let found = [with, without].into_iter().find(|p| {
+                rest.strip_prefix(p).is_some_and(|after| {
+                    after
+                        .chars()
+                        .next()
+                        .is_none_or(|c| c.is_whitespace() || ".,:;)!".contains(c))
+                })
+            });
+            if let Some(found) = found {
+                const RIEUL: u32 = 8;
+                let correct = if with == "으로" {
+                    if final_consonant != 0 && final_consonant != RIEUL {
+                        with
+                    } else {
+                        without
+                    }
+                } else if final_consonant != 0 {
+                    with
+                } else {
+                    without
+                };
+                out.push_str(correct);
+                rest = &rest[found.len()..];
+                break;
+            }
+        }
+    }
+    out
+}
+
 /// 앞말의 받침에 따라 맞는 조사 형태를 돌려줍니다. 맞으면 `None`.
 fn particle_form_error(stem: &str, particle: &str) -> Option<&'static str> {
     const RIEUL: u32 = 8;
@@ -663,7 +738,7 @@ fn role_for(
         word.error(
             "K506",
             format!(
-                "'{stem}{particle}': '{particle}' 앞에는 {need}이 와야 하지만 '{stem}'은 {}입니다.",
+                "'{stem}{particle}': '{particle}' 앞에는 '{need}'이 와야 하지만 '{stem}'은 {}입니다.",
                 scope.describe(value)
             ),
         )
@@ -685,7 +760,7 @@ fn check_frames(
         return Err(token.error(
             "K306",
             format!(
-                "문장의 {first}은 {}, {last}은 {}입니다. 같은 기준을 사용하세요.",
+                "문장의 '{first}'은 {}, '{last}'은 {}입니다. 같은 기준을 사용하세요.",
                 scope.describe(a),
                 scope.describe(b)
             ),

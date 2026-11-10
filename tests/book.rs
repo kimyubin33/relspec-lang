@@ -51,7 +51,11 @@ fn blocks() -> Vec<Block> {
                 }
             }
         }
-        assert!(current.is_none(), "{}: 닫히지 않은 코드 블록", path.display());
+        assert!(
+            current.is_none(),
+            "{}: 닫히지 않은 코드 블록",
+            path.display()
+        );
     }
     blocks
 }

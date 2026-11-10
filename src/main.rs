@@ -1,6 +1,6 @@
 use std::{env, fs, io, path::Path, process::ExitCode};
 
-const USAGE: &str = "KPL 0.5\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
+const USAGE: &str = "KPL 0.6\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();
@@ -75,6 +75,7 @@ fn main() -> ExitCode {
             ("행위", program.verbs.len()),
             ("문장", program.sentences.len()),
             ("참조", program.references.len()),
+            ("규칙", program.rules.len()),
         ] {
             if count > 0 {
                 summary.push_str(&format!(", {label} {count}개"));
@@ -104,8 +105,48 @@ fn main() -> ExitCode {
                 show(&unknown.max, "상한 없음"),
             );
         }
+        for rule in &program.rules {
+            let detail = match (&rule.method, &rule.outcomes) {
+                (Some(method), _) => {
+                    let particle = if *method == "곱" { "으로" } else { "로" };
+                    format!(" ({method}{particle} 계산)")
+                }
+                (None, Some(outcomes)) if outcomes.iter().all(|o| o.choices.len() == 1) => {
+                    let parts: Vec<_> = outcomes
+                        .iter()
+                        .map(|o| {
+                            format!("{} {}", o.choices.values().next().unwrap_or(&""), o.value)
+                        })
+                        .collect();
+                    format!(" ({})", parts.join(", "))
+                }
+                (None, Some(outcomes)) if outcomes.len() <= 4 => {
+                    let parts: Vec<_> = outcomes
+                        .iter()
+                        .map(|o| {
+                            let choice: Vec<_> = o
+                                .choices
+                                .iter()
+                                .map(|(rule, method)| format!("{rule} {method}"))
+                                .collect();
+                            format!("{} → {}", choice.join("·"), o.value)
+                        })
+                        .collect();
+                    format!(" ({})", parts.join(", "))
+                }
+                (None, Some(outcomes)) => format!(" (방식 조합 {}가지)", outcomes.len()),
+                (None, None) => " (두 방식의 결과가 같음)".to_string(),
+            };
+            println!("규칙 '{}': {}{detail}", rule.name, rule.value);
+        }
         for goal in &program.goals {
             let mut line = format!("목표 '{}': {}", goal.name, goal.status);
+            if !goal.undecided_rules.is_empty() {
+                line.push_str(&format!(
+                    " (규칙의 계산 방식에 따라 다름: {})",
+                    goal.undecided_rules.join(", ")
+                ));
+            }
             if !goal.missing_observations.is_empty() {
                 line.push_str(&format!(
                     " (보장 여부를 확정하려면 관측 필요: {})",

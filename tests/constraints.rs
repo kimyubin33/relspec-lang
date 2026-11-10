@@ -96,10 +96,8 @@ fn chained_differences_propagate_bounds() {
          목표 전체 = 다 - 가 <= 7 초\n\
          목표 빠듯 = 다 - 가 <= 6 초");
     assert_eq!(goal(&program, "전체").0, "보장");
-    assert_eq!(
-        goal(&program, "빠듯"),
-        ("가능", vec!["가".into(), "다".into()])
-    );
+    // '가'는 조건으로 값이 하나로 정해졌으므로 관측할 필요가 없습니다(0.6부터).
+    assert_eq!(goal(&program, "빠듯"), ("가능", vec!["다".into()]));
     // `나 > 가`는 정수 밀리초에서 `나 - 가 >= 1`입니다.
     let c = &program.unknowns[2];
     assert_eq!(

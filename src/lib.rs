@@ -1,3 +1,4 @@
+mod degree;
 mod integer;
 mod parser;
 mod sentence;
@@ -7,12 +8,13 @@ mod syntax;
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::fmt;
 
+use degree::Degree;
 use integer::Integer;
 use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.5";
+pub const LANGUAGE_VERSION: &str = "0.6";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -77,6 +79,28 @@ pub enum IrExpression {
     },
 }
 
+/// 방식을 정하지 않은 규칙들의 방식 조합 하나와 그때의 값.
+#[derive(Serialize)]
+pub struct IrOutcome {
+    /// 규칙 이름 → `최소` 또는 `곱`
+    pub choices: BTreeMap<String, &'static str>,
+    pub value: String,
+}
+
+#[derive(Serialize)]
+pub struct IrRule {
+    pub name: String,
+    /// `최소` 또는 `곱`. 정하지 않았으면 없으며, 두 방식을 모두 계산합니다.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<&'static str>,
+    pub premise: IrExpression,
+    pub strength: IrExpression,
+    /// 결론의 정도. 방식에 따라 다르면 `56%~70%`처럼 범위입니다.
+    pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcomes: Option<Vec<IrOutcome>>,
+}
+
 #[derive(Serialize)]
 pub struct IrStatement {
     pub kind: &'static str,
@@ -88,6 +112,9 @@ pub struct IrStatement {
     pub unit: Option<&'static str>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub frame: Option<String>,
+    /// 규칙의 방식에 따라 값이 갈라지면 조합마다의 값.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcomes: Option<Vec<IrOutcome>>,
     pub expression: IrExpression,
 }
 
@@ -156,6 +183,9 @@ pub struct IrGoal {
     pub status: &'static str,
     /// `가능`일 때 판정을 확정하려면 관측해야 하는 미지값.
     pub missing_observations: Vec<String>,
+    /// `가능`일 때 계산 방식에 따라 판정이 갈리는 규칙.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub undecided_rules: Vec<String>,
     pub expression: IrExpression,
 }
 
@@ -231,6 +261,8 @@ pub struct CompiledProgram {
     pub sentences: Vec<IrSentence>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<IrReference>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub rules: Vec<IrRule>,
 }
 
 /// 사건이 받을 수 있는 역할과 각 역할의 값 종류.
@@ -261,6 +293,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         verbs: Vec::new(),
         sentences: Vec::new(),
         references: Vec::new(),
+        rules: Vec::new(),
     };
     let mut pending = Vec::new();
     let mut verbs: Vec<sentence::Verb> = Vec::new();
@@ -273,7 +306,8 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             | Statement::Entity { name }
             | Statement::Event { name, .. }
             | Statement::Unknown { name, .. }
-            | Statement::Constraint { name, .. } => Some(name),
+            | Statement::Constraint { name, .. }
+            | Statement::Rule { name, .. } => Some(name),
             Statement::Sentence { label, .. } => label.as_ref(),
             // 관측은 새 이름을 만들지 않고 미지값에 값을 기록합니다.
             // 행위와 참조는 값과 다른 이름 공간을 씁니다.
@@ -299,6 +333,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 // 미지값이 들어간 검사는 모든 해에서 보장되어야 하며, 판정은 모든 조건을 읽은 뒤에 합니다.
                 let judged = constrain(expression, &scope)?;
                 check_declared_type(&name, Type::Boolean, &judged.value, &scope)?;
+                reject_mixed(&name, &judged)?;
                 pending.push(Pending {
                     name,
                     is_check: true,
@@ -324,6 +359,9 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 check_declared_type(&name, expected, &value, &scope)?;
 
                 let is_definition = declared_type.is_some();
+                if !is_definition && value.worlds.is_some() {
+                    return Err(split_check(&name, &value, &scope));
+                }
                 if !is_definition && value.number.is_zero() {
                     return Err(
                         name.error("K401", format!("검사 '{}'의 결과가 거짓입니다.", name.text))
@@ -334,9 +372,10 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     kind: if is_definition { "정의" } else { "검사" },
                     name: name.text.clone(),
                     value_type: value.kind.name(),
-                    value: value.display(),
+                    value: value.display_all(),
                     unit: value.kind.base_unit(),
                     frame: scope.frame_name(&value),
+                    outcomes: scope.outcomes(&value),
                     expression: ir,
                 });
                 if is_definition {
@@ -360,6 +399,8 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     number: Integer::from_small(program.entities.len() as u32),
                     label: Some(name.text.clone()),
                     terms: BTreeMap::new(),
+                    scale: 0,
+                    worlds: None,
                 };
                 scope.values.insert(name.text.clone(), value);
                 program.entities.push(IrEntity { name: name.text });
@@ -389,7 +430,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                             return Err(token.error(
                                 "K308",
                                 format!(
-                                    "{} 기준 '{}'에는 {}을 놓을 수 없습니다.",
+                                    "{} 기준 '{}'에는 '{}'을 놓을 수 없습니다.",
                                     scope.frames[id].1.name(),
                                     token.text,
                                     kind.name(),
@@ -418,6 +459,16 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             } => {
                 let judged = constrain(expression, &scope)?;
                 check_declared_type(&name, Type::Boolean, &judged.value, &scope)?;
+                reject_mixed(&name, &judged)?;
+                if !goal && judged.value.worlds.is_some() {
+                    return Err(name.error(
+                        "K541",
+                        format!(
+                            "조건 '{}'의 값이 규칙의 계산 방식에 따라 달라집니다. 조건은 미지값의 범위를 정하는 데 쓰고, 규칙의 결과는 목표나 검사로 확인하세요.",
+                            name.text
+                        ),
+                    ));
+                }
                 if goal {
                     pending.push(Pending {
                         name,
@@ -439,6 +490,96 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     name: name.text,
                     expression: judged.ir,
                 });
+            }
+            Statement::Rule {
+                name,
+                premise,
+                strength,
+                method,
+            } => {
+                let premise = bind(premise, &scope)?;
+                let strength = bind(strength, &scope)?;
+                if premise.value.is_symbolic() || strength.value.is_symbolic() {
+                    return Err(name.error(
+                        "K406",
+                        format!("규칙 '{}'에는 미지값을 쓸 수 없습니다.", name.text),
+                    ));
+                }
+                if !matches!(premise.value.kind, Type::Boolean | Type::Degree) {
+                    return Err(name.error(
+                        "K303",
+                        format!(
+                            "규칙 '{}'의 전제는 정도나 논리여야 하지만 {}입니다.",
+                            name.text,
+                            scope.describe(&premise.value)
+                        ),
+                    ));
+                }
+                if strength.value.kind != Type::Degree {
+                    return Err(name.error(
+                        "K303",
+                        format!(
+                            "규칙 '{}'의 강도는 '80%'처럼 정도여야 하지만 {}입니다.",
+                            name.text,
+                            scope.describe(&strength.value)
+                        ),
+                    ));
+                }
+                let method = method.map(|token| {
+                    if token.text == "곱으로" {
+                        Method::Product
+                    } else {
+                        Method::Minimum
+                    }
+                });
+                let value = match method {
+                    Some(method) => {
+                        lift2(&name, &premise.value, &strength.value, &scope, |p, s| {
+                            Ok(Value::degree(method.apply(&p.as_degree(), &s.as_degree())))
+                        })?
+                    }
+                    None => {
+                        // 방식을 정하지 않은 규칙은 세계를 둘로 나눕니다: 최소로 계산한 세계와 곱으로 계산한 세계.
+                        let id = scope.rules.len();
+                        scope.rules.push(name.text.clone());
+                        let mut results = Vec::new();
+                        for a in premise.value.branches() {
+                            for b in strength.value.branches() {
+                                let consistent = a.choice.iter().all(|(rule, m)| {
+                                    b.choice.get(rule).is_none_or(|other| other == m)
+                                });
+                                if !consistent {
+                                    continue;
+                                }
+                                for method in [Method::Minimum, Method::Product] {
+                                    let mut choice = a.choice.clone();
+                                    choice.extend(b.choice.clone());
+                                    choice.insert(id, method);
+                                    results.push(World {
+                                        choice,
+                                        value: Value::degree(
+                                            method
+                                                .apply(&a.value.as_degree(), &b.value.as_degree()),
+                                        ),
+                                    });
+                                }
+                                if results.len() > MAX_WORLDS {
+                                    return Err(too_many_worlds(&name, &scope));
+                                }
+                            }
+                        }
+                        collapse(results)
+                    }
+                };
+                program.rules.push(IrRule {
+                    name: name.text.clone(),
+                    method: method.map(Method::name),
+                    premise: premise.ir,
+                    strength: strength.ir,
+                    value: value.display_all(),
+                    outcomes: scope.outcomes(&value),
+                });
+                scope.values.insert(name.text, value);
             }
             Statement::Verb {
                 name,
@@ -565,7 +706,16 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         judged,
     } in pending
     {
-        let (status, missing) = judge(&scope, &judged);
+        let (status, missing, undecided) = if judged.value.worlds.is_some() {
+            // 세계가 갈라졌다면 어떤 방식에서는 참, 어떤 방식에서는 거짓입니다.
+            if is_check {
+                return Err(split_check(&name, &judged.value, &scope));
+            }
+            ("가능", Vec::new(), scope.deciding_rules(&judged.value))
+        } else {
+            let (status, missing) = judge(&scope, &judged);
+            (status, missing, Vec::new())
+        };
         if is_check {
             if status != "보장" {
                 let reason = if status == "불가능" {
@@ -593,6 +743,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 value: "참".into(),
                 unit: None,
                 frame: None,
+                outcomes: None,
                 expression: judged.ir,
             });
         } else {
@@ -600,6 +751,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 name: name.text,
                 status,
                 missing_observations: missing,
+                undecided_rules: undecided,
                 expression: judged.ir,
             });
         }
@@ -623,6 +775,49 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
     }
 
     Ok(program)
+}
+
+/// 미지값이 든 제약과 규칙 방식에 따라 갈라지는 값은 한 판정에 함께 쓸 수 없습니다.
+fn reject_mixed(name: &Token, judged: &Judged) -> Result<(), Diagnostic> {
+    if judged.value.worlds.is_some() && !judged.atoms.is_empty() {
+        return Err(name.error(
+            "K541",
+            format!(
+                "'{}'에 미지값과 규칙의 결과가 함께 들어 있습니다. 둘을 따로 판정하세요.",
+                name.text
+            ),
+        ));
+    }
+    Ok(())
+}
+
+/// 규칙의 방식에 따라 결과가 갈리는 검사. 두 방식 모두에서 참이어야 통과합니다.
+fn split_check(name: &Token, value: &Value, scope: &Scope) -> Diagnostic {
+    let worlds = value.worlds.as_deref().unwrap_or_default();
+    let examples = |truth: bool| {
+        worlds
+            .iter()
+            .filter(|w| w.value.number.is_zero() != truth)
+            .take(2)
+            .map(|w| format!("({})", scope.describe_choice(&w.choice)))
+            .collect::<Vec<_>>()
+            .join(" ")
+    };
+    name.error(
+        "K540",
+        format!(
+            "검사 '{}'의 결과가 규칙의 계산 방식에 따라 달라집니다. 참: {} / 거짓: {}. 방식에 상관없이 성립해야 하며, 방식을 정하려면 규칙 {}에 '최소로' 또는 '곱으로'를 붙이세요.",
+            name.text,
+            examples(true),
+            examples(false),
+            scope
+                .deciding_rules(value)
+                .iter()
+                .map(|r| format!("'{r}'"))
+                .collect::<Vec<_>>()
+                .join(", "),
+        ),
+    )
 }
 
 /// 미지값 하나 또는 두 미지값의 차이에 대한 상한: `to - from <= bound`.
@@ -677,9 +872,14 @@ fn constrain(expression: Expression, scope: &Scope) -> Result<Judged, Diagnostic
             let value = evaluate_binary(&op, &left.value, &right.value, scope)?;
             let mut atoms = left.atoms;
             atoms.extend(right.atoms);
+            let fixed = if atoms.is_empty() && value.worlds.is_none() {
+                value.kind == Type::Boolean && !value.number.is_zero()
+            } else {
+                left.fixed && right.fixed
+            };
             Ok(Judged {
                 value,
-                fixed: left.fixed && right.fixed,
+                fixed,
                 atoms,
                 ir: IrExpression::Binary {
                     kind: Type::Boolean.name(),
@@ -838,6 +1038,17 @@ fn assume(scope: &mut Scope, atom: &Atom, name: &Token, label: &str) -> Result<(
     ))
 }
 
+/// 조건만으로 값이 하나로 정해진 미지값인지(최솟값 = 최댓값). 관측할 필요가 없습니다.
+fn pinned(scope: &Scope, node: usize) -> bool {
+    match (
+        scope.closure.upper(ORIGIN, node),
+        scope.closure.upper(node, ORIGIN),
+    ) {
+        (Some(max), Some(back)) => max.add(back).is_zero(),
+        _ => false,
+    }
+}
+
 /// 모든 조건 아래에서 목표가 보장·가능·불가능 중 무엇인지 판정합니다.
 fn judge(scope: &Scope, judged: &Judged) -> (&'static str, Vec<String>) {
     if !judged.fixed {
@@ -864,7 +1075,9 @@ fn judge(scope: &Scope, judged: &Judged) -> (&'static str, Vec<String>) {
         .atoms
         .iter()
         .flat_map(|atom| [atom.from, atom.to])
-        .filter(|&node| node != ORIGIN && scope.unknowns[node - 1].observed.is_none())
+        .filter(|&node| {
+            node != ORIGIN && scope.unknowns[node - 1].observed.is_none() && !pinned(scope, node)
+        })
         .collect();
     nodes.sort_unstable();
     nodes.dedup();
@@ -885,6 +1098,8 @@ struct Scope {
     /// 꼭짓점 `n`의 미지값은 `unknowns[n - 1]`입니다.
     unknowns: Vec<UnknownInfo>,
     closure: Closure,
+    /// 방식을 정하지 않은 규칙의 이름. 세계의 선택은 이 목록의 번호로 적습니다.
+    rules: Vec<String>,
 }
 
 impl Default for Closure {
@@ -915,6 +1130,61 @@ impl Scope {
             (true, Some(id)) => format!("{} @ {amount}", self.frames[id].0),
             _ => amount,
         }
+    }
+
+    fn outcomes(&self, value: &Value) -> Option<Vec<IrOutcome>> {
+        let worlds = value.worlds.as_ref()?;
+        Some(
+            worlds
+                .iter()
+                .map(|world| IrOutcome {
+                    choices: world
+                        .choice
+                        .iter()
+                        .map(|(&rule, method)| (self.rules[rule].clone(), method.name()))
+                        .collect(),
+                    value: world.value.display(),
+                })
+                .collect(),
+        )
+    }
+
+    /// 세계의 선택을 `깨짐 곱, 번짐 최소`처럼 씁니다.
+    fn describe_choice(&self, choice: &BTreeMap<usize, Method>) -> String {
+        choice
+            .iter()
+            .map(|(&rule, method)| format!("{} {}", self.rules[rule], method.name()))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+
+    /// 판정을 바꾸는 규칙: 그 규칙의 방식만 바꿨을 때 값이 달라지는 세계 쌍이 있는 규칙.
+    fn deciding_rules(&self, value: &Value) -> Vec<String> {
+        let Some(worlds) = &value.worlds else {
+            return Vec::new();
+        };
+        let mut rules: Vec<usize> = Vec::new();
+        for a in worlds {
+            for b in worlds {
+                let differing: Vec<usize> = a
+                    .choice
+                    .iter()
+                    .filter(|(rule, m)| b.choice.get(rule) != Some(m))
+                    .map(|(&rule, _)| rule)
+                    .collect();
+                if let [rule] = differing.as_slice()
+                    && !a.value.same_scalar(&b.value)
+                    && !rules.contains(rule)
+                {
+                    rules.push(*rule);
+                }
+            }
+        }
+        rules.sort_unstable();
+        rules
+            .into_iter()
+            .map(|rule| self.rules[rule].clone())
+            .collect()
     }
 
     /// 값을 사람이 읽을 수 있게 씁니다. 미지값이 있으면 `반응 + 200`처럼 씁니다.
@@ -976,7 +1246,47 @@ struct Value {
     label: Option<String>,
     /// 미지값 꼭짓점별 계수. 값은 `number + Σ 계수 × 미지값`입니다.
     terms: BTreeMap<usize, Integer>,
+    /// 정도의 소수 자리. 정도는 `number / 100^scale` 퍼센트입니다. 다른 타입에서는 0입니다.
+    scale: u32,
+    /// 방식을 정하지 않은 규칙 때문에 값이 갈라졌을 때, 방식의 조합(세계)마다의 값.
+    /// 각 세계의 값에는 다시 `worlds`가 없습니다.
+    worlds: Option<Vec<World>>,
 }
+
+/// 퍼지 규칙의 계산 방식.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Method {
+    /// Mamdani: min(전제, 강도)
+    Minimum,
+    /// Larsen: 전제 × 강도
+    Product,
+}
+
+impl Method {
+    fn name(self) -> &'static str {
+        match self {
+            Self::Minimum => "최소",
+            Self::Product => "곱",
+        }
+    }
+
+    fn apply(self, premise: &Degree, strength: &Degree) -> Degree {
+        match self {
+            Self::Minimum => premise.clone().min(strength.clone()),
+            Self::Product => premise.product(strength),
+        }
+    }
+}
+
+/// 방식을 정하지 않은 규칙마다 고른 방식과, 그때의 값.
+#[derive(Clone)]
+struct World {
+    choice: BTreeMap<usize, Method>,
+    value: Value,
+}
+
+/// 한 번에 따질 수 있는 세계의 최대 수. 방식을 정하지 않은 규칙 12개까지의 모든 조합입니다.
+const MAX_WORLDS: usize = 4096;
 
 impl Value {
     fn plain(kind: Type, number: Integer) -> Self {
@@ -986,7 +1296,44 @@ impl Value {
             number,
             label: None,
             terms: BTreeMap::new(),
+            scale: 0,
+            worlds: None,
         }
+    }
+
+    fn degree(degree: Degree) -> Self {
+        Self {
+            scale: degree.scale,
+            ..Self::plain(Type::Degree, degree.n)
+        }
+    }
+
+    /// 정도로 읽습니다. 논리값은 참 100%, 거짓 0%입니다.
+    fn as_degree(&self) -> Degree {
+        if self.kind == Type::Boolean {
+            Degree::percent(if self.number.is_zero() { 0 } else { 100 })
+        } else {
+            Degree::new(self.number.clone(), self.scale)
+        }
+    }
+
+    /// 세계마다의 값. 갈라지지 않은 값은 빈 선택 하나로 봅니다.
+    fn branches(&self) -> Vec<World> {
+        match &self.worlds {
+            Some(worlds) => worlds.clone(),
+            None => vec![World {
+                choice: BTreeMap::new(),
+                value: self.clone(),
+            }],
+        }
+    }
+
+    fn same_scalar(&self, other: &Self) -> bool {
+        self.kind == other.kind
+            && self.number == other.number
+            && self.scale == other.scale
+            && self.label == other.label
+            && self.frame == other.frame
     }
 
     fn point(kind: Type, frame: Option<usize>, number: Integer) -> Self {
@@ -996,6 +1343,8 @@ impl Value {
             number,
             label: None,
             terms: BTreeMap::new(),
+            scale: 0,
+            worlds: None,
         }
     }
 
@@ -1044,10 +1393,80 @@ impl Value {
             }
             .into(),
             Type::Entity => self.label.clone().unwrap_or_default(),
-            Type::Degree => format!("{}%", self.number),
+            Type::Degree => Degree::new(self.number.clone(), self.scale).display(),
             _ => self.number.to_string(),
         }
     }
+
+    /// 세계마다 값이 다르면 범위로 씁니다. 정도는 `56%~70%`, 논리는 `참|거짓`입니다.
+    fn display_all(&self) -> String {
+        let Some(worlds) = &self.worlds else {
+            return self.display();
+        };
+        if self.kind == Type::Degree {
+            let degrees: Vec<Degree> = worlds.iter().map(|w| w.value.as_degree()).collect();
+            let low = degrees.iter().cloned().reduce(Degree::min).unwrap();
+            let high = degrees.into_iter().reduce(Degree::max).unwrap();
+            return format!("{}~{}", low.display(), high.display());
+        }
+        let mut shown: Vec<String> = worlds.iter().map(|w| w.value.display()).collect();
+        shown.sort();
+        shown.dedup();
+        shown.join("|")
+    }
+}
+
+/// 세계별 결과를 모읍니다. 모든 세계의 값이 같으면 방식과 상관없는 값이므로 하나로 합칩니다.
+fn collapse(results: Vec<World>) -> Value {
+    let first = results[0].value.clone();
+    if results.iter().all(|w| w.value.same_scalar(&first)) {
+        return first;
+    }
+    Value {
+        worlds: Some(results),
+        ..first
+    }
+}
+
+/// 두 값의 세계를 짝지어 연산합니다. 같은 규칙에 서로 다른 방식을 고른 짝은 버립니다.
+fn lift2(
+    op: &Token,
+    left: &Value,
+    right: &Value,
+    scope: &Scope,
+    f: impl Fn(&Value, &Value) -> Result<Value, Diagnostic>,
+) -> Result<Value, Diagnostic> {
+    let mut results = Vec::new();
+    for a in left.branches() {
+        for b in right.branches() {
+            let consistent = a
+                .choice
+                .iter()
+                .all(|(rule, method)| b.choice.get(rule).is_none_or(|m| m == method));
+            if !consistent {
+                continue;
+            }
+            let mut choice = a.choice.clone();
+            choice.extend(b.choice.clone());
+            results.push(World {
+                choice,
+                value: f(&a.value, &b.value)?,
+            });
+            if results.len() > MAX_WORLDS {
+                return Err(too_many_worlds(op, scope));
+            }
+        }
+    }
+    Ok(collapse(results))
+}
+
+fn too_many_worlds(token: &Token, _scope: &Scope) -> Diagnostic {
+    token.error(
+        "K542",
+        format!(
+            "방식을 정하지 않은 규칙의 조합이 {MAX_WORLDS}가지를 넘습니다. 일부 규칙에 '최소로' 또는 '곱으로'를 붙이세요."
+        ),
+    )
 }
 
 struct Bound {
@@ -1459,7 +1878,7 @@ fn bind(expression: Expression, scope: &Scope) -> Result<Bound, Diagnostic> {
                 return Err(at.error(
                     "K308",
                     format!(
-                        "{} 기준 '{}'에는 {} 값을 놓아야 하지만 {}이 주어졌습니다.",
+                        "{} 기준 '{}'에는 {} 값을 놓아야 하지만 '{}'이 주어졌습니다.",
                         axis.name(),
                         frame.text,
                         axis.offset().name(),
@@ -1531,16 +1950,25 @@ fn unbound(name: &Token, scope: &Scope) -> Diagnostic {
 }
 
 fn evaluate_unary(op: &Token, value: Value, scope: &Scope) -> Result<Value, Diagnostic> {
+    if let Some(worlds) = &value.worlds {
+        let mut results = Vec::new();
+        for world in worlds {
+            results.push(World {
+                choice: world.choice.clone(),
+                value: evaluate_unary(op, world.value.clone(), scope)?,
+            });
+        }
+        return Ok(collapse(results));
+    }
     match op.kind {
         Kind::Minus if matches!(value.kind, Type::Integer | Type::Time | Type::Distance) => {
             Ok(value.negated())
         }
         Kind::Not if value.kind == Type::Boolean => Ok(Value::logical(value.number.is_zero())),
         // 퍼지 부정: 100% - 정도
-        Kind::Not if value.kind == Type::Degree => Ok(Value::plain(
-            Type::Degree,
-            Integer::from_small(100).sub(&value.number),
-        )),
+        Kind::Not if value.kind == Type::Degree => {
+            Ok(Value::degree(value.as_degree().complement()))
+        }
         _ => Err(op.error(
             "K304",
             format!(
@@ -1549,14 +1977,6 @@ fn evaluate_unary(op: &Token, value: Value, scope: &Scope) -> Result<Value, Diag
                 scope.describe(&value),
             ),
         )),
-    }
-}
-
-fn as_degree(value: &Value) -> Integer {
-    if value.kind == Type::Boolean {
-        Integer::from_small(if value.number.is_zero() { 0 } else { 100 })
-    } else {
-        value.number.clone()
     }
 }
 
@@ -1615,6 +2035,11 @@ fn evaluate_binary(
     right: &Value,
     scope: &Scope,
 ) -> Result<Value, Diagnostic> {
+    if left.worlds.is_some() || right.worlds.is_some() {
+        return lift2(op, left, right, scope, |a, b| {
+            evaluate_binary(op, a, b, scope)
+        });
+    }
     let mut result = evaluate_fixed(op, &left.fixed(), &right.fixed(), scope)?;
     if !left.is_symbolic() && !right.is_symbolic() {
         return Ok(result);
@@ -1670,7 +2095,7 @@ fn evaluate_fixed(
         op.error(
             "K305",
             format!(
-                "'{}' 연산으로 {}과 {}을 계산할 수 없습니다. 기준 위의 점에는 차이(시간·거리)만 더하거나 뺄 수 있습니다.",
+                "'{}' 연산으로 '{}'과 '{}'을 계산할 수 없습니다. 기준 위의 점에는 차이(시간·거리)만 더하거나 뺄 수 있습니다.",
                 op.text,
                 scope.describe(left),
                 scope.describe(right),
@@ -1707,11 +2132,16 @@ fn evaluate_fixed(
             } else if !(vector || (l == r && l == Degree)) {
                 return Err(mismatch());
             }
+            let order = if l == Degree {
+                left.as_degree().compare(&right.as_degree())
+            } else {
+                a.cmp(b)
+            };
             Value::logical(match op.kind {
-                Kind::Less => a < b,
-                Kind::LessEqual => a <= b,
-                Kind::Greater => a > b,
-                _ => a >= b,
+                Kind::Less => order.is_lt(),
+                Kind::LessEqual => order.is_le(),
+                Kind::Greater => order.is_gt(),
+                _ => order.is_ge(),
             })
         }
         Kind::Equal | Kind::NotEqual => {
@@ -1719,7 +2149,12 @@ fn evaluate_fixed(
                 return Err(mismatch());
             }
             same_frame(op, left, right, scope)?;
-            Value::logical((a == b) == (op.kind == Kind::Equal))
+            let equal = if l == Degree {
+                left.as_degree() == right.as_degree()
+            } else {
+                a == b
+            };
+            Value::logical(equal == (op.kind == Kind::Equal))
         }
         // 퍼지 논리(Zadeh): 그리고 = 최솟값, 또는 = 최댓값. 논리값은 참 100%, 거짓 0%로 봅니다.
         Kind::And | Kind::Or
@@ -1727,9 +2162,12 @@ fn evaluate_fixed(
                 && matches!(r, Boolean | Degree)
                 && (l == Degree || r == Degree) =>
         {
-            let (x, y) = (as_degree(left), as_degree(right));
-            let pick_left = if op.kind == Kind::And { x <= y } else { x >= y };
-            Value::plain(Degree, if pick_left { x } else { y })
+            let (x, y) = (left.as_degree(), right.as_degree());
+            Value::degree(if op.kind == Kind::And {
+                x.min(y)
+            } else {
+                x.max(y)
+            })
         }
         Kind::And if l == Boolean && r == Boolean => Value::logical(!a.is_zero() && !b.is_zero()),
         Kind::Or if l == Boolean && r == Boolean => Value::logical(!a.is_zero() || !b.is_zero()),
