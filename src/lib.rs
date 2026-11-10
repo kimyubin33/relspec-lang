@@ -14,7 +14,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.6";
+pub const LANGUAGE_VERSION: &str = "0.7";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -219,6 +219,43 @@ pub struct IrSentenceRole {
     pub reference: Option<u32>,
 }
 
+/// 조건문의 전제나 결론.
+#[derive(Serialize)]
+pub struct IrClause {
+    /// 행위의 기본형
+    pub verb: String,
+    /// 문장에 쓰인 꼴 (`떨어지면`, `깨진다`)
+    pub form: String,
+    pub roles: Vec<IrSentenceRole>,
+}
+
+/// 문장으로 쓴 규칙: `컵이 떨어지면 컵이 80% 깨진다`
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct IrConditional {
+    pub line: usize,
+    /// 문장에 붙인 이름. 붙이지 않았으면 `7행`처럼 줄 번호입니다.
+    pub name: String,
+    pub labeled: bool,
+    /// `최소` 또는 `곱`. 정하지 않았으면 없으며, 두 방식을 모두 계산합니다.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub method: Option<&'static str>,
+    pub condition: IrClause,
+    /// 전제에 해당한 사실이 적힌 줄.
+    pub matched_lines: Vec<usize>,
+    /// 전제의 정도: 해당한 사실들의 정도 중 가장 큰 값.
+    pub premise: String,
+    /// 규칙의 강도: 결론에 적은 정도.
+    pub strength: String,
+    pub conclusion: IrClause,
+    /// 결론의 정도.
+    pub value: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub outcomes: Option<Vec<IrOutcome>>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub references: Vec<u32>,
+}
+
 #[derive(Serialize)]
 pub struct IrSentence {
     pub line: usize,
@@ -263,6 +300,8 @@ pub struct CompiledProgram {
     pub references: Vec<IrReference>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub rules: Vec<IrRule>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub conditionals: Vec<IrConditional>,
 }
 
 /// 사건이 받을 수 있는 역할과 각 역할의 값 종류.
@@ -294,6 +333,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         sentences: Vec::new(),
         references: Vec::new(),
         rules: Vec::new(),
+        conditionals: Vec::new(),
     };
     let mut pending = Vec::new();
     let mut verbs: Vec<sentence::Verb> = Vec::new();
@@ -532,45 +572,14 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                         Method::Minimum
                     }
                 });
-                let value = match method {
-                    Some(method) => {
-                        lift2(&name, &premise.value, &strength.value, &scope, |p, s| {
-                            Ok(Value::degree(method.apply(&p.as_degree(), &s.as_degree())))
-                        })?
-                    }
-                    None => {
-                        // 방식을 정하지 않은 규칙은 세계를 둘로 나눕니다: 최소로 계산한 세계와 곱으로 계산한 세계.
-                        let id = scope.rules.len();
-                        scope.rules.push(name.text.clone());
-                        let mut results = Vec::new();
-                        for a in premise.value.branches() {
-                            for b in strength.value.branches() {
-                                let consistent = a.choice.iter().all(|(rule, m)| {
-                                    b.choice.get(rule).is_none_or(|other| other == m)
-                                });
-                                if !consistent {
-                                    continue;
-                                }
-                                for method in [Method::Minimum, Method::Product] {
-                                    let mut choice = a.choice.clone();
-                                    choice.extend(b.choice.clone());
-                                    choice.insert(id, method);
-                                    results.push(World {
-                                        choice,
-                                        value: Value::degree(
-                                            method
-                                                .apply(&a.value.as_degree(), &b.value.as_degree()),
-                                        ),
-                                    });
-                                }
-                                if results.len() > MAX_WORLDS {
-                                    return Err(too_many_worlds(&name, &scope));
-                                }
-                            }
-                        }
-                        collapse(results)
-                    }
-                };
+                let value = apply_rule(
+                    &mut scope,
+                    &name,
+                    &name.text,
+                    &premise.value,
+                    &strength.value,
+                    method,
+                )?;
                 program.rules.push(IrRule {
                     name: name.text.clone(),
                     method: method.map(Method::name),
@@ -613,23 +622,114 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 });
             }
             Statement::Sentence { label, tokens } => {
-                let bound = sentence::bind_sentence(label.as_ref(), &tokens, &scope, &verbs)?;
-                for ordering in &bound.orderings {
-                    require_order(&mut scope, ordering)?;
+                let line = tokens[0].line();
+                match sentence::bind_line(label.as_ref(), &tokens, &scope, &verbs)? {
+                    sentence::BoundLine::Plain(bound) => {
+                        let bound = *bound;
+                        for ordering in &bound.orderings {
+                            require_order(&mut scope, ordering)?;
+                        }
+                        apply_tense(&mut scope, &bound)?;
+                        check_not_late(&scope, &bound.pattern, &bound.verb_token)?;
+                        let degree = Value::plain(Type::Degree, Integer::from_small(bound.degree));
+                        scope.facts.push(Fact {
+                            pattern: bound.pattern,
+                            degree: degree.clone(),
+                            line,
+                        });
+                        citations.extend(bound.citations);
+                        if let Some(label) = label {
+                            // 이름 붙은 문장은 정도로도, 사건으로도(`이름.시작`) 읽을 수 있습니다.
+                            scope
+                                .events
+                                .insert(label.text.clone(), EventRecord { roles: bound.roles });
+                            scope.values.insert(label.text, degree);
+                        }
+                        program.sentences.push(bound.ir);
+                    }
+                    sentence::BoundLine::Conditional(bound) => {
+                        let sentence::BoundConditional {
+                            condition,
+                            conclusion,
+                            strength,
+                            method,
+                            citations: cited,
+                        } = *bound;
+                        // 전제: 앞에 적힌 사실 가운데 해당하는 것들. 여럿이면 가장 큰 정도를 씁니다
+                        // ("그런 사건이 있다"의 정도는 해당하는 사건들의 정도 중 최댓값입니다).
+                        let matched: Vec<&Fact> = scope
+                            .facts
+                            .iter()
+                            .filter(|fact| satisfies(&fact.pattern, &condition.pattern))
+                            .collect();
+                        let Some((head, rest)) = matched.split_first() else {
+                            return Err(condition.verb_token.error(
+                                "K551",
+                                format!(
+                                    "전제 '{}'에 해당하는 사실이 앞에 없습니다. 조건문보다 앞에 그 사실을 문장으로 적으세요. 일어나지 않았다면 '0%'로 적습니다.",
+                                    condition.ir.form
+                                ),
+                            ));
+                        };
+                        let matched_lines: Vec<usize> = matched.iter().map(|f| f.line).collect();
+                        let mut premise = head.degree.clone();
+                        for fact in rest {
+                            premise = lift2(
+                                &condition.verb_token,
+                                &premise,
+                                &fact.degree,
+                                &scope,
+                                |a, b| Ok(Value::degree(a.as_degree().max(b.as_degree()))),
+                            )?;
+                        }
+                        let rule_name = label
+                            .as_ref()
+                            .map_or_else(|| format!("{line}행"), |l| l.text.clone());
+                        let strength_value = Value::degree(Degree::percent(strength));
+                        let value = apply_rule(
+                            &mut scope,
+                            &conclusion.verb_token,
+                            &rule_name,
+                            &premise,
+                            &strength_value,
+                            method,
+                        )?;
+                        for ordering in &conclusion.orderings {
+                            require_order(&mut scope, ordering)?;
+                        }
+                        scope.conditions.push((condition.pattern, line));
+                        check_not_late(&scope, &conclusion.pattern, &conclusion.verb_token)?;
+                        scope.facts.push(Fact {
+                            pattern: conclusion.pattern,
+                            degree: value.clone(),
+                            line,
+                        });
+                        program.conditionals.push(IrConditional {
+                            line,
+                            name: rule_name,
+                            labeled: label.is_some(),
+                            method: method.map(Method::name),
+                            condition: condition.ir,
+                            matched_lines,
+                            premise: premise.display_all(),
+                            strength: strength_value.display(),
+                            conclusion: conclusion.ir,
+                            value: value.display_all(),
+                            outcomes: scope.outcomes(&value),
+                            references: cited.iter().map(|(n, _)| *n).collect(),
+                        });
+                        citations.extend(cited);
+                        if let Some(label) = label {
+                            scope.events.insert(
+                                label.text.clone(),
+                                EventRecord {
+                                    roles: conclusion.roles,
+                                },
+                            );
+                            scope.values.insert(label.text, value);
+                        }
+                    }
                 }
-                apply_tense(&mut scope, &bound)?;
-                citations.extend(bound.citations);
-                if let Some(label) = label {
-                    // 이름 붙은 문장은 정도로도, 사건으로도(`이름.시작`) 읽을 수 있습니다.
-                    scope
-                        .events
-                        .insert(label.text.clone(), EventRecord { roles: bound.roles });
-                    scope.values.insert(
-                        label.text,
-                        Value::plain(Type::Degree, Integer::from_small(bound.degree)),
-                    );
-                }
-                program.sentences.push(bound.ir);
             }
             Statement::Observe { name, expression } => {
                 let Some(&node) = scope.unknown_ids.get(&name.text) else {
@@ -775,6 +875,105 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
     }
 
     Ok(program)
+}
+
+/// 규칙을 적용해 결론의 정도를 구합니다. 방식을 정하지 않았으면 세계를 둘로 나눕니다:
+/// 최소로 계산한 세계와 곱으로 계산한 세계.
+fn apply_rule(
+    scope: &mut Scope,
+    token: &Token,
+    rule_name: &str,
+    premise: &Value,
+    strength: &Value,
+    method: Option<Method>,
+) -> Result<Value, Diagnostic> {
+    if let Some(method) = method {
+        return lift2(token, premise, strength, scope, |p, s| {
+            Ok(Value::degree(method.apply(&p.as_degree(), &s.as_degree())))
+        });
+    }
+    let id = scope.rules.len();
+    scope.rules.push(rule_name.to_string());
+    let mut results = Vec::new();
+    for a in premise.branches() {
+        for b in strength.branches() {
+            let consistent = a
+                .choice
+                .iter()
+                .all(|(rule, m)| b.choice.get(rule).is_none_or(|other| other == m));
+            if !consistent {
+                continue;
+            }
+            for method in [Method::Minimum, Method::Product] {
+                let mut choice = a.choice.clone();
+                choice.extend(b.choice.clone());
+                choice.insert(id, method);
+                results.push(World {
+                    choice,
+                    value: Value::degree(method.apply(&a.value.as_degree(), &b.value.as_degree())),
+                });
+            }
+            if results.len() > MAX_WORLDS {
+                return Err(too_many_worlds(token, scope));
+            }
+        }
+    }
+    Ok(collapse(results))
+}
+
+/// 문장이 말한 사실, 또는 조건문이 이끌어 낸 사실.
+struct Fact {
+    pattern: sentence::Pattern,
+    degree: Value,
+    line: usize,
+}
+
+fn same_filler(a: &sentence::FactFiller, b: &sentence::FactFiller) -> bool {
+    use sentence::FactFiller::{Reference, Value};
+    match (a, b) {
+        (Value(x), Value(y)) => x.same_scalar(y) && x.terms == y.terms,
+        (Reference(x), Reference(y)) => x == y,
+        _ => false,
+    }
+}
+
+/// 사실이 전제의 모양에 해당하는지 봅니다. 행위가 같고, 전제가 말한 역할을 사실이 모두 같은 값으로
+/// 가지면 해당합니다. 사실에 역할이 더 있어도 됩니다: "유빈이 복도에서 공을 굴렸다"는
+/// "유빈이 공을 굴렸다"를 함의하기 때문입니다(사건 의미론).
+fn satisfies(fact: &sentence::Pattern, wanted: &sentence::Pattern) -> bool {
+    fact.verb == wanted.verb
+        && wanted.roles.iter().all(|(role, filler)| {
+            fact.roles
+                .iter()
+                .any(|(r, f)| r == role && same_filler(f, filler))
+        })
+}
+
+/// 새 사실이 앞선 조건문의 전제에 해당하면 안 됩니다. 조건문은 자기보다 앞에 적힌 사실만 봅니다.
+fn check_not_late(
+    scope: &Scope,
+    fact: &sentence::Pattern,
+    token: &Token,
+) -> Result<(), Diagnostic> {
+    if let Some((_, line)) = scope
+        .conditions
+        .iter()
+        .find(|(wanted, _)| satisfies(fact, wanted))
+    {
+        if *line == token.line() {
+            return Err(token.error(
+                "K552",
+                "이 조건문의 결론이 자기 전제에 해당합니다. 결론이 다시 전제가 되는 순환은 쓸 수 없습니다.",
+            ));
+        }
+        return Err(token.error(
+            "K552",
+            format!(
+                "이 사실은 {line}행 조건문의 전제에 해당하지만 그 조건문보다 뒤에 있습니다. 조건문은 앞에 적힌 사실만 보므로, 이 줄을 {line}행 앞으로 옮기세요."
+            ),
+        ));
+    }
+    Ok(())
 }
 
 /// 미지값이 든 제약과 규칙 방식에 따라 갈라지는 값은 한 판정에 함께 쓸 수 없습니다.
@@ -1100,6 +1299,10 @@ struct Scope {
     closure: Closure,
     /// 방식을 정하지 않은 규칙의 이름. 세계의 선택은 이 목록의 번호로 적습니다.
     rules: Vec<String>,
+    /// 지금까지 말했거나 이끌어 낸 사실.
+    facts: Vec<Fact>,
+    /// 앞선 조건문들의 전제와 그 줄 번호.
+    conditions: Vec<(sentence::Pattern, usize)>,
 }
 
 impl Default for Closure {
@@ -1254,7 +1457,7 @@ struct Value {
 }
 
 /// 퍼지 규칙의 계산 방식.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub(crate) enum Method {
     /// Mamdani: min(전제, 강도)
     Minimum,
@@ -1416,10 +1619,44 @@ impl Value {
     }
 }
 
-/// 세계별 결과를 모읍니다. 모든 세계의 값이 같으면 방식과 상관없는 값이므로 하나로 합칩니다.
-fn collapse(results: Vec<World>) -> Value {
+/// 세계별 결과를 모읍니다. 값에 영향을 주지 않는 규칙은 세계에서 빼고,
+/// 모든 세계의 값이 같으면 방식과 상관없는 값이므로 하나로 합칩니다.
+fn collapse(mut results: Vec<World>) -> Value {
+    let rules: Vec<usize> = results
+        .iter()
+        .flat_map(|w| w.choice.keys().copied())
+        .collect::<std::collections::BTreeSet<_>>()
+        .into_iter()
+        .collect();
+    for rule in rules {
+        // 이 규칙의 방식을 빼고도 값이 하나로 정해지면, 이 규칙은 값에 영향을 주지 않습니다.
+        let mut reduced: Vec<World> = Vec::new();
+        let mut seen: BTreeMap<BTreeMap<usize, Method>, usize> = BTreeMap::new();
+        let mut irrelevant = true;
+        for world in &results {
+            let mut choice = world.choice.clone();
+            choice.remove(&rule);
+            match seen.get(&choice) {
+                Some(&index) if reduced[index].value.same_scalar(&world.value) => {}
+                Some(_) => {
+                    irrelevant = false;
+                    break;
+                }
+                None => {
+                    seen.insert(choice.clone(), reduced.len());
+                    reduced.push(World {
+                        choice,
+                        value: world.value.clone(),
+                    });
+                }
+            }
+        }
+        if irrelevant {
+            results = reduced;
+        }
+    }
     let first = results[0].value.clone();
-    if results.iter().all(|w| w.value.same_scalar(&first)) {
+    if results.len() == 1 || results.iter().all(|w| w.value.same_scalar(&first)) {
         return first;
     }
     Value {

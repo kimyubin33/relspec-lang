@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use crate::syntax::{Kind, Token, Type};
-use crate::{Diagnostic, IrSentence, IrSentenceRole, Ordering, Scope, Value};
+use crate::{Diagnostic, IrClause, IrSentence, IrSentenceRole, Method, Ordering, Scope, Value};
 
 /// 문장에서 쓸 수 있는 역할. 행위 선언의 필수 역할도 이 이름으로 적습니다.
 pub(crate) const SENTENCE_ROLES: &[&str] = &[
@@ -136,6 +136,22 @@ impl Verb {
                     const HIEUH: u32 = 18;
                     initial == HIEUH && (medial == 0 || medial == 1)
                 })
+    }
+
+    /// 조건문의 전제를 닫는 꼴인지 확인합니다: 어간 + '-면'(받침이 없거나 ㄹ 받침) 또는 '-으면'(그 밖의 받침).
+    /// 불규칙 활용(듣다 → 들으면)은 선언의 괄호에 적은 꼴과 견줍니다.
+    pub(crate) fn matches_conditional(&self, word: &str) -> bool {
+        const RIEUL: u32 = 8;
+        if self.forms.iter().any(|form| form == word) {
+            return word.ends_with('면');
+        }
+        let stem: String = self.stem.iter().collect();
+        let batchim = self.stem.last().and_then(|&c| jamo(c)).map(|j| j.2);
+        match batchim {
+            Some(0) | Some(RIEUL) => word.strip_suffix('면') == Some(stem.as_str()),
+            Some(_) => word.strip_suffix("으면") == Some(stem.as_str()),
+            None => false,
+        }
     }
 
     /// 문장의 마지막 낱말이 이 행위의 활용형인지 확인합니다.
@@ -400,17 +416,214 @@ pub(crate) struct BoundSentence {
     pub(crate) verb_token: Token,
     /// 문장이 인용한 참조 번호와 그 위치. 정의되었는지는 파일 끝에서 확인합니다.
     pub(crate) citations: Citations,
+    /// 이 문장이 말하는 사실. 조건문의 전제와 견줍니다.
+    pub(crate) pattern: Pattern,
 }
 
-pub(crate) fn bind_sentence(
+/// 사실과 전제를 견줄 때 쓰는 역할 값. 지시어는 가리키는 참조 번호로 견줍니다.
+#[derive(Clone)]
+pub(crate) enum FactFiller {
+    Value(Value),
+    Reference(u32),
+}
+
+/// 행위와 역할들. 문장이 말하는 사실이자, 조건문의 전제가 찾는 모양입니다.
+#[derive(Clone)]
+pub(crate) struct Pattern {
+    pub(crate) verb: String,
+    pub(crate) roles: Vec<(&'static str, FactFiller)>,
+}
+
+/// 조건문의 전제나 결론 하나.
+pub(crate) struct BoundClause {
+    pub(crate) ir: IrClause,
+    pub(crate) pattern: Pattern,
+    pub(crate) roles: HashMap<&'static str, Value>,
+    pub(crate) orderings: Vec<Ordering>,
+    pub(crate) verb_token: Token,
+}
+
+/// `컵이 떨어지면 컵이 80% 깨진다`
+pub(crate) struct BoundConditional {
+    pub(crate) condition: BoundClause,
+    pub(crate) conclusion: BoundClause,
+    /// 결론에 적은 정도. 규칙의 강도이며, 적지 않으면 100입니다.
+    pub(crate) strength: u32,
+    pub(crate) method: Option<Method>,
+    pub(crate) citations: Citations,
+}
+
+pub(crate) enum BoundLine {
+    Plain(Box<BoundSentence>),
+    Conditional(Box<BoundConditional>),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Mode {
+    /// 사실을 말하는 문장
+    Assert,
+    /// 조건문의 전제: 행위가 '-면'으로 끝납니다.
+    Condition,
+    /// 조건문의 결론
+    Conclusion,
+}
+
+struct Clause<'a> {
+    verb: &'a Verb,
+    verb_token: Token,
+    degree: Option<u32>,
+    method: Option<Method>,
+    /// 이 절까지 나온 지시어의 수.
+    demonstratives: usize,
+    ir_roles: Vec<IrSentenceRole>,
+    values: HashMap<&'static str, Value>,
+    orderings: Vec<Ordering>,
+    pattern: Pattern,
+}
+
+impl Clause<'_> {
+    fn into_bound(self) -> BoundClause {
+        BoundClause {
+            ir: IrClause {
+                verb: self.verb.name.clone(),
+                form: self.verb_token.text.clone(),
+                roles: self.ir_roles,
+            },
+            pattern: self.pattern,
+            roles: self.values,
+            orderings: self.orderings,
+            verb_token: self.verb_token,
+        }
+    }
+}
+
+/// '-면'으로 끝나 조건문의 전제를 닫는 낱말인지 봅니다. 선언된 이름(예: 대상 '화면')은 제외합니다.
+fn closes_condition(token: &Token, scope: &Scope) -> bool {
+    token.kind == Kind::Identifier
+        && token.text.ends_with('면')
+        && token.text.chars().count() > 1
+        && !scope.values.contains_key(&token.text)
+}
+
+pub(crate) fn bind_line(
     label: Option<&Token>,
     tokens: &[Token],
     scope: &Scope,
     verbs: &[Verb],
-) -> Result<BoundSentence, Diagnostic> {
+) -> Result<BoundLine, Diagnostic> {
     let first = &tokens[0];
     let (body, citations) = split_citations(tokens)?;
+    let last = body.len().saturating_sub(1);
 
+    let split = body[..last]
+        .iter()
+        .position(|token| closes_condition(token, scope));
+    let Some(split) = split else {
+        if let Some(end) = body.last()
+            && closes_condition(end, scope)
+            && verbs.iter().any(|v| v.matches_conditional(&end.text))
+        {
+            return Err(end.error(
+                "K550",
+                format!(
+                    "'{}' 뒤에 결론이 없습니다. '컵이 떨어지면 컵이 깨진다'처럼 '-면' 뒤에 결론 문장을 적으세요.",
+                    end.text
+                ),
+            ));
+        }
+        let clause = bind_clause(body, &citations, 0, Mode::Assert, scope, verbs, first)?;
+        let degree = clause.degree.unwrap_or(100);
+        let tense = Tense::of(clause.verb, &clause.verb_token.text);
+        return Ok(BoundLine::Plain(Box::new(BoundSentence {
+            ir: IrSentence {
+                line: first.line(),
+                label: label.map(|l| l.text.clone()),
+                verb: clause.verb.name.clone(),
+                form: clause.verb_token.text.clone(),
+                degree,
+                tense: tense.map(Tense::name),
+                roles: clause.ir_roles,
+                references: citations.iter().map(|(n, _)| *n).collect(),
+            },
+            degree,
+            roles: clause.values,
+            orderings: clause.orderings,
+            tense,
+            verb_token: clause.verb_token,
+            citations,
+            pattern: clause.pattern,
+        })));
+    };
+
+    let (condition_body, mut conclusion_body) = body.split_at(split + 1);
+    // 계산 방식은 결론 뒤에 붙여 쓸 수 있습니다: '... 컵이 80% 깨진다 곱으로'
+    let mut trailing = None;
+    if let Some((end, rest)) = conclusion_body.split_last()
+        && end.kind == Kind::Identifier
+        && !rest.is_empty()
+    {
+        let method = match end.text.as_str() {
+            "최소로" => Some(Method::Minimum),
+            "곱으로" => Some(Method::Product),
+            _ => None,
+        };
+        if method.is_some() {
+            trailing = method.map(|m| (m, end.clone()));
+            conclusion_body = rest;
+        }
+    }
+    if let Some(extra) = conclusion_body[..conclusion_body.len() - 1]
+        .iter()
+        .find(|token| closes_condition(token, scope))
+    {
+        return Err(extra.error(
+            "K550",
+            "조건문 하나에는 '-면'을 한 번만 씁니다. 이어지는 규칙은 줄을 나누어 적으세요.",
+        ));
+    }
+    let condition = bind_clause(
+        condition_body,
+        &citations,
+        0,
+        Mode::Condition,
+        scope,
+        verbs,
+        first,
+    )?;
+    let conclusion = bind_clause(
+        conclusion_body,
+        &citations,
+        condition.demonstratives,
+        Mode::Conclusion,
+        scope,
+        verbs,
+        first,
+    )?;
+    let method = match (conclusion.method, trailing) {
+        (Some(_), Some((_, token))) => {
+            return Err(token.error("K505", "계산 방식은 한 번만 적습니다."));
+        }
+        (inner, trailing) => inner.or(trailing.map(|(m, _)| m)),
+    };
+    Ok(BoundLine::Conditional(Box::new(BoundConditional {
+        strength: conclusion.degree.unwrap_or(100),
+        method,
+        condition: condition.into_bound(),
+        conclusion: conclusion.into_bound(),
+        citations,
+    })))
+}
+
+/// 절 하나(낱말들과 마지막의 행위)를 읽습니다.
+fn bind_clause<'a>(
+    body: &[Token],
+    citations: &Citations,
+    demonstrative_offset: usize,
+    mode: Mode,
+    scope: &Scope,
+    verbs: &'a [Verb],
+    first: &Token,
+) -> Result<Clause<'a>, Diagnostic> {
     let Some((verb_token, words)) = body.split_last() else {
         return Err(first.error("K500", "문장 끝에 행위(동사)를 적으세요."));
     };
@@ -420,11 +633,15 @@ pub(crate) fn bind_sentence(
             "문장은 행위(동사)로 끝나야 합니다. 값을 선언하려면 '정의'로 시작하세요.",
         ));
     }
+    let fits = |verb: &Verb, word: &str| {
+        if mode == Mode::Condition {
+            verb.matches_conditional(word)
+        } else {
+            verb.matches(word)
+        }
+    };
     let mut words = words;
-    let mut matched: Vec<&Verb> = verbs
-        .iter()
-        .filter(|v| v.matches(&verb_token.text))
-        .collect();
+    let mut matched: Vec<&Verb> = verbs.iter().filter(|v| fits(v, &verb_token.text)).collect();
     // 기능동사 구문: '설계를 하다'는 '설계하다'와 같은 행위입니다.
     if matched.is_empty()
         && let Some((noun, rest)) = words.split_last()
@@ -435,14 +652,28 @@ pub(crate) fn bind_sentence(
             .or_else(|| noun.text.strip_suffix('를'))
     {
         let joined = format!("{stem}{}", verb_token.text);
-        let light: Vec<&Verb> = verbs.iter().filter(|v| v.matches(&joined)).collect();
-        if !light.is_empty() && Verb::is_light(&verb_token.text) {
+        let light: Vec<&Verb> = verbs.iter().filter(|v| fits(v, &joined)).collect();
+        let is_light = if mode == Mode::Condition {
+            verb_token.text == "하면"
+        } else {
+            Verb::is_light(&verb_token.text)
+        };
+        if !light.is_empty() && is_light {
             matched = light;
             words = rest;
         }
     }
     let verb = match matched.as_slice() {
         [verb] => *verb,
+        [] if mode == Mode::Condition => {
+            return Err(verb_token.error(
+                "K503",
+                format!(
+                    "'{}'에 해당하는 행위가 선언되지 않았습니다. 전제는 '떨어지면', '먹으면'처럼 선언한 행위의 어간에 '-면'이나 '-으면'을 붙여 씁니다.",
+                    verb_token.text
+                ),
+            ));
+        }
         [] => {
             return Err(verb_token.error(
                 "K503",
@@ -466,9 +697,10 @@ pub(crate) fn bind_sentence(
     };
 
     let mut degree = None;
+    let mut method = None;
     let mut roles: HashMap<&'static str, (Filler, Token, &'static str)> = HashMap::new();
     let mut order = Vec::new();
-    let mut demonstratives = 0;
+    let mut demonstratives = demonstrative_offset;
     let mut index = 0;
 
     while index < words.len() {
@@ -477,6 +709,12 @@ pub(crate) fn bind_sentence(
         match word.kind {
             Kind::Number if words.get(index).map(|t| t.kind) == Some(Kind::Percent) => {
                 index += 1;
+                if mode == Mode::Condition {
+                    return Err(word.error(
+                        "K550",
+                        "전제에는 정도를 적을 수 없습니다. 규칙의 강도는 '컵이 80% 깨진다'처럼 결론에 적으세요.",
+                    ));
+                }
                 if degree.is_some() {
                     return Err(word.error("K505", "문장 하나에는 정도를 한 번만 적습니다."));
                 }
@@ -493,6 +731,32 @@ pub(crate) fn bind_sentence(
                     "K500",
                     format!(
                         "문장에는 낱말과 정도(70%)만 쓸 수 있습니다. '{}'은 쓸 수 없습니다. 값을 선언하려면 '정의'로 시작하세요.",
+                        word.text
+                    ),
+                ));
+            }
+        }
+
+        // 계산 방식: 조건문의 결론에서만 씁니다.
+        let chosen = match word.text.as_str() {
+            "최소로" => Some(Method::Minimum),
+            "곱으로" => Some(Method::Product),
+            _ => None,
+        };
+        if let Some(chosen) = chosen {
+            let noun = word.text.trim_end_matches("으로").trim_end_matches('로');
+            if mode == Mode::Conclusion {
+                if method.is_some() {
+                    return Err(word.error("K505", "계산 방식은 한 번만 적습니다."));
+                }
+                method = Some(chosen);
+                continue;
+            }
+            if !scope.values.contains_key(noun) {
+                return Err(word.error(
+                    "K550",
+                    format!(
+                        "'{}'는 조건문의 결론에서만 씁니다. 예: '컵이 떨어지면 컵이 80% 깨진다 곱으로'",
                         word.text
                     ),
                 ));
@@ -625,8 +889,19 @@ pub(crate) fn bind_sentence(
         })
         .collect();
 
-    let degree = degree.unwrap_or(100);
-    let tense = Tense::of(verb, &verb_token.text);
+    let pattern = Pattern {
+        verb: verb.name.clone(),
+        roles: order
+            .iter()
+            .map(|role| {
+                let filler = match &roles[role].0 {
+                    Filler::Value(value) => FactFiller::Value(value.clone()),
+                    Filler::Reference(k) => FactFiller::Reference(citations[*k].0),
+                };
+                (*role, filler)
+            })
+            .collect(),
+    };
     let values = roles
         .iter()
         .filter_map(|(role, (filler, _, _))| match filler {
@@ -634,23 +909,16 @@ pub(crate) fn bind_sentence(
             Filler::Reference(_) => None,
         })
         .collect();
-    Ok(BoundSentence {
-        ir: IrSentence {
-            line: first.line(),
-            label: label.map(|l| l.text.clone()),
-            verb: verb.name.clone(),
-            form: verb_token.text.clone(),
-            degree,
-            tense: tense.map(Tense::name),
-            roles: ir_roles,
-            references: citations.iter().map(|(n, _)| *n).collect(),
-        },
-        degree,
-        roles: values,
-        orderings,
-        tense,
+    Ok(Clause {
+        verb,
         verb_token: verb_token.clone(),
-        citations,
+        degree,
+        method,
+        demonstratives,
+        ir_roles,
+        values,
+        orderings,
+        pattern,
     })
 }
 
