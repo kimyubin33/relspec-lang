@@ -1,6 +1,6 @@
 use std::{env, fs, io, path::Path, process::ExitCode};
 
-const USAGE: &str = "KPL 0.4\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
+const USAGE: &str = "KPL 0.5\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();

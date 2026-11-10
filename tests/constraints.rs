@@ -174,7 +174,7 @@ fn unknowns_stay_out_of_fixed_values() {
         fails(&format!("{base}정의 나: 시각 = 가 + 1 초")),
         ("K406", 3)
     );
-    assert_eq!(fails(&format!("{base}사건 일: 시작 = 가")), ("K406", 3));
+    // 0.5부터 사건 역할에는 미지값을 쓸 수 있습니다(tests/linking.rs).
     assert_eq!(fails(&format!("{base}관측 가 = 가")), ("K406", 3));
 }
 

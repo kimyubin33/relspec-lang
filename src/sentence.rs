@@ -7,7 +7,7 @@
 use std::collections::HashMap;
 
 use crate::syntax::{Kind, Token, Type};
-use crate::{Diagnostic, IrSentence, IrSentenceRole, Scope, Value};
+use crate::{Diagnostic, IrSentence, IrSentenceRole, Ordering, Scope, Value};
 
 /// 문장에서 쓸 수 있는 역할. 행위 선언의 필수 역할도 이 이름으로 적습니다.
 pub(crate) const SENTENCE_ROLES: &[&str] = &[
@@ -61,7 +61,7 @@ const DEMONSTRATIVE_NOUNS: &[&str] = &["이것", "그것", "저것"];
 pub(crate) struct Verb {
     pub(crate) name: String,
     /// 기본형에서 '다'를 뗀 어간.
-    stem: Vec<char>,
+    pub(crate) stem: Vec<char>,
     forms: Vec<String>,
     pub(crate) required: Vec<&'static str>,
 }
@@ -262,9 +262,67 @@ enum Filler {
     Reference(usize),
 }
 
+/// 동사의 시제. 말하는 시각 `지금`과 사건 시각의 관계로 바뀝니다.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum Tense {
+    /// -았/었/였- (했다, 떨어졌다): 사건이 지금까지 끝남
+    Past,
+    /// -ㄴ다/-는다 (한다, 먹는다): 지금이 사건 안에 있음
+    Present,
+    /// -겠- (하겠다): 사건이 지금보다 뒤에 시작함
+    Future,
+}
+
+impl Tense {
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Past => "과거",
+            Self::Present => "현재",
+            Self::Future => "미래",
+        }
+    }
+
+    /// 활용형의 선어말어미로 시제를 읽습니다. 기본형(설계하다)은 시제가 없습니다.
+    fn of(verb: &Verb, word: &str) -> Option<Self> {
+        const SSANG_SIOT: u32 = 20;
+        const NIEUN: u32 = 4;
+        if word == verb.name {
+            return None;
+        }
+        let chars: Vec<char> = word.chars().collect();
+        let (last, body) = chars.split_last()?;
+        if *last != '다' {
+            return None;
+        }
+        if body.contains(&'겠') {
+            return Some(Self::Future);
+        }
+        // 어간 앞부분(바뀌지 않는 음절)은 건너뛰어 '있다'의 '있' 같은 받침을 시제로 읽지 않습니다.
+        let skip = verb.stem.len().saturating_sub(1).min(body.len());
+        let ending = &body[skip..];
+        if ending
+            .iter()
+            .any(|&c| jamo(c).is_some_and(|j| j.2 == SSANG_SIOT))
+        {
+            return Some(Self::Past);
+        }
+        let penultimate = body.last().and_then(|&c| jamo(c));
+        if word.ends_with("는다") || penultimate.is_some_and(|j| j.2 == NIEUN) {
+            return Some(Self::Present);
+        }
+        None
+    }
+}
+
 pub(crate) struct BoundSentence {
     pub(crate) ir: IrSentence,
     pub(crate) degree: u32,
+    /// 값으로 채운 역할. 이름 붙은 문장은 `이름.역할`로 읽습니다.
+    pub(crate) roles: HashMap<&'static str, Value>,
+    /// 시간 순서처럼 해 집합에 더해야 하는 관계.
+    pub(crate) orderings: Vec<Ordering>,
+    pub(crate) tense: Option<Tense>,
+    pub(crate) verb_token: Token,
     /// 문장이 인용한 참조 번호와 그 위치. 정의되었는지는 파일 끝에서 확인합니다.
     pub(crate) citations: Citations,
 }
@@ -450,8 +508,20 @@ pub(crate) fn bind_sentence(
         ));
     }
 
-    check_order(&roles, "시작", "종료", scope)?;
-    check_order(&roles, "출발", "도착", scope)?;
+    let mut orderings = Vec::new();
+    check_frames(&roles, "시작", "종료", scope)?;
+    check_frames(&roles, "출발", "도착", scope)?;
+    // 시간은 앞으로만 흐르므로 종료는 시작보다 앞설 수 없습니다. 위치는 뒤로도 움직일 수 있습니다.
+    if let (Some((Filler::Value(start), _, _)), Some((Filler::Value(end), token, _))) =
+        (roles.get("시작"), roles.get("종료"))
+    {
+        orderings.push(Ordering {
+            earlier: start.clone(),
+            later: end.clone(),
+            token: token.clone(),
+            what: format!("행위 '{}'의 종료", verb.name),
+        });
+    }
 
     let ir_roles = order
         .iter()
@@ -462,7 +532,7 @@ pub(crate) fn bind_sentence(
                     role: (*role).into(),
                     particle: (*particle).into(),
                     value_type: value.kind.name(),
-                    value: value.display(),
+                    value: scope.show(value),
                     unit: value.kind.base_unit(),
                     frame: scope.frame_name(value),
                     reference: None,
@@ -481,6 +551,14 @@ pub(crate) fn bind_sentence(
         .collect();
 
     let degree = degree.unwrap_or(100);
+    let tense = Tense::of(verb, &verb_token.text);
+    let values = roles
+        .iter()
+        .filter_map(|(role, (filler, _, _))| match filler {
+            Filler::Value(value) => Some((*role, value.clone())),
+            Filler::Reference(_) => None,
+        })
+        .collect();
     Ok(BoundSentence {
         ir: IrSentence {
             line: first.line(),
@@ -488,10 +566,15 @@ pub(crate) fn bind_sentence(
             verb: verb.name.clone(),
             form: verb_token.text.clone(),
             degree,
+            tense: tense.map(Tense::name),
             roles: ir_roles,
             references: citations.iter().map(|(n, _)| *n).collect(),
         },
         degree,
+        roles: values,
+        orderings,
+        tense,
+        verb_token: verb_token.clone(),
         citations,
     })
 }
@@ -528,13 +611,7 @@ fn split_particle<'a>(
         if DEMONSTRATIVE_NOUNS.contains(&stem) {
             return Ok((stem, particle, kind));
         }
-        if let Some(value) = scope.values.get(stem) {
-            if value.is_symbolic() {
-                return Err(word.error(
-                    "K406",
-                    format!("문장에는 미지값 '{stem}'을 쓸 수 없습니다."),
-                ));
-            }
+        if scope.values.contains_key(stem) {
             return Ok((stem, particle, kind));
         }
     }
@@ -593,7 +670,7 @@ fn role_for(
     })
 }
 
-fn check_order(
+fn check_frames(
     roles: &HashMap<&'static str, (Filler, Token, &'static str)>,
     first: &str,
     last: &str,
@@ -614,19 +691,9 @@ fn check_order(
             ),
         ));
     }
-    if b.number < a.number {
-        return Err(token.error(
-            "K402",
-            format!(
-                "문장의 {last}({})이 {first}({})보다 앞섭니다.",
-                b.number, a.number
-            ),
-        ));
-    }
     Ok(())
 }
 
-/// 문장 끝의 `(참조 1, 참조 2)`를 떼어 냅니다.
 /// 문장이 인용한 참조 번호와 그 위치.
 type Citations = Vec<(u32, Token)>;
 

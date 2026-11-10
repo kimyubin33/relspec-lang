@@ -12,7 +12,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.4";
+pub const LANGUAGE_VERSION: &str = "0.5";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -200,6 +200,9 @@ pub struct IrSentence {
     pub form: String,
     /// 문장이 참인 정도(퍼센트). 적지 않으면 100입니다.
     pub degree: u32,
+    /// 활용형에서 읽은 시제: 과거, 현재, 미래. 기본형이면 없습니다.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tense: Option<&'static str>,
     pub roles: Vec<IrSentenceRole>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<u32>,
@@ -362,7 +365,10 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 program.entities.push(IrEntity { name: name.text });
             }
             Statement::Event { name, roles } => {
-                let (record, ir) = bind_event(&name, roles, &scope)?;
+                let (record, ir, orderings) = bind_event(&name, roles, &scope)?;
+                for ordering in &orderings {
+                    require_order(&mut scope, ordering)?;
+                }
                 scope.events.insert(name.text, record);
                 program.events.push(ir);
             }
@@ -467,8 +473,16 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             }
             Statement::Sentence { label, tokens } => {
                 let bound = sentence::bind_sentence(label.as_ref(), &tokens, &scope, &verbs)?;
+                for ordering in &bound.orderings {
+                    require_order(&mut scope, ordering)?;
+                }
+                apply_tense(&mut scope, &bound)?;
                 citations.extend(bound.citations);
                 if let Some(label) = label {
+                    // 이름 붙은 문장은 정도로도, 사건으로도(`이름.시작`) 읽을 수 있습니다.
+                    scope
+                        .events
+                        .insert(label.text.clone(), EventRecord { roles: bound.roles });
                     scope.values.insert(
                         label.text,
                         Value::plain(Type::Degree, Integer::from_small(bound.degree)),
@@ -903,6 +917,42 @@ impl Scope {
         }
     }
 
+    /// 값을 사람이 읽을 수 있게 씁니다. 미지값이 있으면 `반응 + 200`처럼 씁니다.
+    fn show(&self, value: &Value) -> String {
+        if !value.is_symbolic() {
+            return value.display();
+        }
+        let one = Integer::from_small(1);
+        let zero = Integer::from_small(0);
+        let mut text = String::new();
+        for (&node, coefficient) in &value.terms {
+            let name = &self.unknowns[node - 1].name;
+            let negative = *coefficient < zero;
+            let magnitude = if negative {
+                coefficient.clone().negate()
+            } else {
+                coefficient.clone()
+            };
+            let term = if magnitude == one {
+                name.clone()
+            } else {
+                format!("{magnitude} × {name}")
+            };
+            text = match (text.is_empty(), negative) {
+                (true, false) => term,
+                (true, true) => format!("-{term}"),
+                (false, false) => format!("{text} + {term}"),
+                (false, true) => format!("{text} - {term}"),
+            };
+        }
+        if value.number > zero {
+            text = format!("{text} + {}", value.number);
+        } else if value.number < zero {
+            text = format!("{text} - {}", value.number.clone().negate());
+        }
+        text
+    }
+
     /// 진단 메시지용 타입 이름. 기준 위의 점이면 기준 이름을 덧붙입니다.
     fn describe(&self, value: &Value) -> String {
         match value.frame {
@@ -1056,7 +1106,8 @@ fn bind_event(
     name: &Token,
     roles: Vec<Role>,
     scope: &Scope,
-) -> Result<(EventRecord, IrEvent), Diagnostic> {
+) -> Result<(EventRecord, IrEvent, Vec<Ordering>), Diagnostic> {
+    let mut orderings = Vec::new();
     let mut values: HashMap<&'static str, Value> = HashMap::new();
     let mut tokens: HashMap<&'static str, Token> = HashMap::new();
     let mut ir_roles = Vec::new();
@@ -1088,15 +1139,6 @@ fn bind_event(
         }
 
         let Bound { value, ir } = bind(expression, scope)?;
-        if value.is_symbolic() {
-            return Err(role.error(
-                "K406",
-                format!(
-                    "사건 '{}'의 '{}' 역할에 미지값이 들어 있습니다. 사건 역할에는 값이 확정된 식만 쓸 수 있습니다.",
-                    name.text, role_name
-                ),
-            ));
-        }
         if value.kind != expected {
             let (code, hint) = if point_vector_pair(expected, value.kind) {
                 ("K307", point_hint(expected))
@@ -1120,7 +1162,7 @@ fn bind_event(
         ir_roles.push(IrRole {
             role: role_name.into(),
             value_type: value.kind.name(),
-            value: value.display(),
+            value: scope.show(&value),
             unit: value.kind.base_unit(),
             frame: scope.frame_name(&value),
             expression: Some(ir),
@@ -1149,22 +1191,19 @@ fn bind_event(
                     ),
                 ));
             }
-            if end.number < start.number {
-                return Err(name.error(
-                    "K402",
-                    format!(
-                        "사건 '{}'의 종료({} 밀리초)가 시작({} 밀리초)보다 앞섭니다.",
-                        name.text, end.number, start.number,
-                    ),
-                ));
-            }
+            orderings.push(Ordering {
+                earlier: start.clone(),
+                later: end.clone(),
+                token: name.clone(),
+                what: format!("사건 '{}'의 종료", name.text),
+            });
         }
         None => {
             // 종료를 생략한 사건은 한 시각에 일어난 사건으로 봅니다.
             ir_roles.push(IrRole {
                 role: "종료".into(),
                 value_type: start.kind.name(),
-                value: start.display(),
+                value: scope.show(&start),
                 unit: start.kind.base_unit(),
                 frame: scope.frame_name(&start),
                 expression: None,
@@ -1203,7 +1242,139 @@ fn bind_event(
             name: name.text.clone(),
             roles: ir_roles,
         },
+        orderings,
     ))
+}
+
+/// `earlier`가 `later`보다 늦지 않아야 한다는 관계. 값이 확정되어 있으면 바로 확인하고,
+/// 미지값이 있으면 해 집합에 제약으로 더합니다.
+pub(crate) struct Ordering {
+    pub(crate) earlier: Value,
+    pub(crate) later: Value,
+    pub(crate) token: Token,
+    /// 진단에 쓰는 설명. 예: "사건 '굴림'의 종료"
+    pub(crate) what: String,
+}
+
+fn require_order(scope: &mut Scope, ordering: &Ordering) -> Result<(), Diagnostic> {
+    let Ordering {
+        earlier,
+        later,
+        token,
+        what,
+    } = ordering;
+    require_before(
+        scope,
+        earlier,
+        later,
+        false,
+        token,
+        "K402",
+        format!(
+            "{what}({})가 시작({})보다 앞섭니다.",
+            scope.show(later),
+            scope.show(earlier)
+        ),
+    )
+}
+
+/// `earlier <= later`(엄격하면 `earlier < later`)를 확인하거나 제약으로 더합니다.
+/// 두 값은 같은 기준에 있어야 합니다.
+#[allow(clippy::too_many_arguments)]
+fn require_before(
+    scope: &mut Scope,
+    earlier: &Value,
+    later: &Value,
+    strict: bool,
+    token: &Token,
+    code: &'static str,
+    message: String,
+) -> Result<(), Diagnostic> {
+    let difference = earlier.minus(later);
+    let bound = if strict {
+        Integer::from_small(1).negate()
+    } else {
+        Integer::from_small(0)
+    };
+    if !difference.is_symbolic() {
+        return if difference.number > bound {
+            Err(token.error(code, message))
+        } else {
+            Ok(())
+        };
+    }
+    let atom = atom(token, &difference, bound)?;
+    scope
+        .closure
+        .add(atom.from, atom.to, &atom.bound)
+        .map_err(|_| {
+            token.error(
+                code,
+                format!("{message} 앞선 조건에 따르면 항상 그렇습니다."),
+            )
+        })
+}
+
+/// 시제를 말하는 시각 `지금`과 사건 시각의 관계로 바꿉니다(Reichenbach의 시제 모형).
+/// 과거: 사건이 지금까지 끝남, 현재: 지금이 사건 안에 있음, 미래: 사건이 지금보다 뒤에 시작함.
+fn apply_tense(scope: &mut Scope, bound: &sentence::BoundSentence) -> Result<(), Diagnostic> {
+    use sentence::Tense;
+    let Some(tense) = bound.tense else {
+        return Ok(());
+    };
+    let Some(now) = scope.values.get("지금").cloned() else {
+        return Ok(());
+    };
+    if now.kind != Type::Instant {
+        return Ok(());
+    }
+    let start = bound.roles.get("시작");
+    let end = bound.roles.get("종료");
+    let token = &bound.verb_token;
+    for value in [start, end].into_iter().flatten() {
+        if value.frame != now.frame {
+            return Err(token.error(
+                "K306",
+                format!(
+                    "시제를 확인하려면 사건 시각과 '지금'이 같은 기준에 있어야 합니다. 사건은 {}, 지금은 {}입니다.",
+                    scope.describe(value),
+                    scope.describe(&now)
+                ),
+            ));
+        }
+    }
+    let message = |relation: &str| {
+        format!(
+            "{} {} 시제이므로 {relation}이어야 하지만 그렇지 않습니다.",
+            sentence::josa(&format!("'{}'", token.text), "은", "는"),
+            tense.name()
+        )
+    };
+    match tense {
+        Tense::Past => {
+            if let Some(last) = end.or(start) {
+                let text = message("사건이 지금까지 끝난 것");
+                require_before(scope, last, &now, false, token, "K530", text)?;
+            }
+        }
+        Tense::Present => {
+            if let Some(start) = start {
+                let text = message("사건이 지금 이전에 시작한 것");
+                require_before(scope, start, &now, false, token, "K530", text)?;
+            }
+            if let Some(end) = end {
+                let text = message("사건이 지금 이후에 끝나는 것");
+                require_before(scope, &now, end, false, token, "K530", text)?;
+            }
+        }
+        Tense::Future => {
+            if let Some(start) = start {
+                let text = message("사건이 지금보다 뒤에 시작하는 것");
+                require_before(scope, &now, start, true, token, "K530", text)?;
+            }
+        }
+    }
+    Ok(())
 }
 
 fn member(event_token: &Token, field: &Token, scope: &Scope) -> Result<Value, Diagnostic> {
@@ -1221,7 +1392,10 @@ fn member(event_token: &Token, field: &Token, scope: &Scope) -> Result<Value, Di
         let (Some(first), Some(last)) = (roles.get(a), roles.get(b)) else {
             return None;
         };
-        Some(Value::plain(kind, last.number.sub(&first.number)))
+        let mut difference = last.minus(first);
+        difference.kind = kind;
+        difference.frame = None;
+        Some(difference)
     };
     let value = match field.text.as_str() {
         "소요" => derived("시작", "종료", Type::Time),
