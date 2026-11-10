@@ -106,14 +106,20 @@ fn main() -> ExitCode {
                 show(&unknown.max, "상한 없음"),
             );
         }
-        let detail = |method: &Option<&'static str>, outcomes: &Option<Vec<kpl::IrOutcome>>| match (
+        let detail = |name: &str,
+                      method: &Option<&'static str>,
+                      outcomes: &Option<Vec<kpl::IrOutcome>>| match (
             method, outcomes,
         ) {
             (Some(method), _) => {
                 let particle = if *method == "곱" { "으로" } else { "로" };
                 format!(" ({method}{particle} 계산)")
             }
-            (None, Some(outcomes)) if outcomes.iter().all(|o| o.choices.len() == 1) => {
+            (None, Some(outcomes))
+                if outcomes
+                    .iter()
+                    .all(|o| o.choices.len() == 1 && o.choices.contains_key(name)) =>
+            {
                 let parts: Vec<_> = outcomes
                     .iter()
                     .map(|o| format!("{} {}", o.choices.values().next().unwrap_or(&""), o.value))
@@ -142,7 +148,7 @@ fn main() -> ExitCode {
                 "규칙 '{}': {}{}",
                 rule.name,
                 rule.value,
-                detail(&rule.method, &rule.outcomes)
+                detail(&rule.name, &rule.method, &rule.outcomes)
             );
         }
         for rule in &program.conditionals {
@@ -154,7 +160,7 @@ fn main() -> ExitCode {
             println!(
                 "조건문 {name}: {}{}",
                 rule.value,
-                detail(&rule.method, &rule.outcomes)
+                detail(&rule.name, &rule.method, &rule.outcomes)
             );
         }
         for goal in &program.goals {
