@@ -1,0 +1,81 @@
+# RelSpec (KPL) VS Code 확장
+
+`.kpl` 파일을 VS Code에서 코드처럼 쓰기 위한 확장입니다.
+
+| 기능 | 내용 |
+| --- | --- |
+| 문법 색칠 | 선언 낱말, 이름, 타입, 수와 단위, 정도, 논리 연산, 지시어, 참조, 주석 |
+| 실시간 진단 | 글자를 칠 때마다 컴파일해서 오류를 그 낱말 아래에 표시합니다(`K504` 등). |
+| 판정 결과 표시 | 오류가 없으면 목표의 판정(보장·가능·불가능), 미지값의 범위, 규칙과 조건문의 정도를 그 줄에 정보로 표시합니다. 불가능한 목표는 경고입니다. |
+| 설명 | 낱말에 마우스를 올리면 정의된 값, 문장에서 맡은 역할, 행위의 기본형과 필수 역할, 판정 결과를 보여 줍니다. |
+| 자동 완성 | 선언 낱말, 타입, 단위, 논리 연산과 이 파일에서 선언한 이름 |
+| 정의로 이동 | 이름(조사가 붙어 있어도 됨), 활용형(`눌렀다` → `행위 누르다`), `(참조 1)` → `참조 1:` |
+| 문서 개요 | 선언한 이름과 참조, 이름 붙은 문장의 목록 |
+
+색칠은 `syntaxes/kpl.tmLanguage.json`이 맡고, 나머지는 컴파일러에 들어 있는 언어 서버(`kpl lsp`)가 맡습니다. 언어 서버는 Language Server Protocol을 따르므로 LSP를 지원하는 다른 편집기에서도 `kpl lsp`를 실행하도록 설정하면 같은 기능을 쓸 수 있습니다.
+
+## 준비
+
+1. 저장소 최상위 폴더에서 컴파일러를 빌드합니다.
+
+   ```powershell
+   cargo build --release --locked
+   ```
+
+2. 이 폴더(`editors/vscode`)에서 확장이 쓰는 라이브러리를 받습니다. [Node.js](https://nodejs.org/)가 필요합니다.
+
+   ```powershell
+   cd editors/vscode
+   npm install
+   ```
+
+## 실행해 보기
+
+VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec 확장 실행"). 확장이 들어간 새 VS Code 창이 저장소 폴더를 연 채로 뜹니다. 거기서 `examples/조건문.kpl`을 열어 보세요.
+
+## 설치하기
+
+늘 쓰려면 이 폴더를 VS Code의 확장 폴더에 복사합니다. 복사하기 전에 위의 `npm install`을 마쳐서 `node_modules` 폴더가 함께 복사되어야 합니다.
+
+| 운영체제 | 확장 폴더 |
+| --- | --- |
+| Windows | `%USERPROFILE%\.vscode\extensions\relspec-kpl` |
+| macOS, Linux | `~/.vscode/extensions/relspec-kpl` |
+
+복사한 뒤 VS Code를 다시 시작합니다.
+
+설치 파일(.vsix)로 묶으려면 이 폴더에서 `npx @vscode/vsce package`를 실행하고, 만들어진 파일을 VS Code의 "VSIX에서 설치"로 설치합니다. (이 방법은 개발 환경의 제약으로 아직 직접 확인하지 못했습니다.)
+
+## 언어 서버를 찾는 순서
+
+확장은 `kpl` 실행 파일을 다음 순서로 찾습니다.
+
+1. 설정 `kpl.server.path`에 적은 경로
+2. 열어 둔 작업 폴더의 `target/release/kpl`, 그다음 `target/debug/kpl` (Windows에서는 `kpl.exe`)
+3. `PATH`에 있는 `kpl`
+
+저장소가 아닌 폴더의 `.kpl` 파일을 쓸 때는 1번이나 3번이 필요합니다. 저장소에서 `cargo install --path . --locked`를 실행하면 `kpl`이 `PATH`에 설치됩니다.
+
+서버를 찾지 못하면 오류 알림이 뜨고, 문법 색칠만 동작합니다. 컴파일러를 다시 빌드한 뒤에는 명령 팔레트의 "RelSpec: 언어 서버 다시 시작"을 실행하세요.
+
+## 시험
+
+```powershell
+npm test
+```
+
+- `test/grammar.test.js`: 색칠 규칙을 VS Code의 색칠 엔진(`vscode-textmate`)으로 돌려 낱말마다 기대한 종류로 색칠되는지 확인합니다.
+- `test/server.test.js`: VS Code가 쓰는 통신 라이브러리(`vscode-jsonrpc`)로 `kpl lsp`와 대화해 진단, 설명, 정의로 이동, 개요를 확인합니다.
+
+언어 서버 자체의 시험은 저장소의 `tests/lsp.rs`에 있습니다(`cargo test`).
+
+## 확인한 범위
+
+위의 두 시험과 `tests/lsp.rs`로 색칠 규칙과 언어 서버의 동작을 확인했습니다. VS Code 창 안에서 확장을 직접 띄워 보는 확인은 아직 하지 못했으므로, 처음 실행할 때 문제가 있으면 "출력" 창의 "RelSpec (KPL)" 항목을 확인해 주세요.
+
+## 알려진 한계
+
+- 컴파일러가 첫 오류에서 멈추므로 오류는 한 번에 하나만 표시됩니다.
+- 문장 안의 이름은 조사와 붙어 있어 색칠 규칙만으로는 구분할 수 없습니다. 역할에 따른 색칠(의미 토큰)은 앞으로의 과제입니다.
+- 마우스를 올렸을 때의 설명은 마지막으로 컴파일에 성공했을 때의 내용입니다. 오류를 고치면 갱신됩니다.
+- Visual Studio(VS Code가 아닌 IDE)용 확장은 아직 없습니다.

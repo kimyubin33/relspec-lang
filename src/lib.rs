@@ -14,7 +14,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.7";
+pub const LANGUAGE_VERSION: &str = "0.8";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -89,6 +89,8 @@ pub struct IrOutcome {
 
 #[derive(Serialize)]
 pub struct IrRule {
+    /// 소스의 줄 번호
+    pub line: usize,
     pub name: String,
     /// `최소` 또는 `곱`. 정하지 않았으면 없으며, 두 방식을 모두 계산합니다.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -152,6 +154,8 @@ pub struct IrEvent {
 
 #[derive(Serialize)]
 pub struct IrUnknown {
+    /// 소스의 줄 번호
+    pub line: usize,
     pub name: String,
     #[serde(rename = "type")]
     pub value_type: &'static str,
@@ -178,6 +182,8 @@ pub struct IrConstraint {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct IrGoal {
+    /// 소스의 줄 번호
+    pub line: usize,
     pub name: String,
     /// `보장`(모든 해에서 성립), `가능`(일부 해에서 성립), `불가능`(어떤 해에서도 성립하지 않음)
     pub status: &'static str,
@@ -486,6 +492,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 scope.values.insert(name.text.clone(), value);
                 scope.unknown_ids.insert(name.text.clone(), node);
                 scope.unknowns.push(UnknownInfo {
+                    line: name.line(),
                     name: name.text,
                     kind,
                     frame,
@@ -581,6 +588,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     method,
                 )?;
                 program.rules.push(IrRule {
+                    line: name.line(),
                     name: name.text.clone(),
                     method: method.map(Method::name),
                     premise: premise.ir,
@@ -848,6 +856,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             });
         } else {
             program.goals.push(IrGoal {
+                line: name.line(),
                 name: name.text,
                 status,
                 missing_observations: missing,
@@ -861,6 +870,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         let node = index + 1;
         let probe = Value::point(info.kind, info.frame, Integer::from_small(0));
         program.unknowns.push(IrUnknown {
+            line: info.line,
             name: info.name.clone(),
             value_type: info.kind.name(),
             unit: info.kind.base_unit(),
@@ -1044,6 +1054,7 @@ struct Pending {
 }
 
 struct UnknownInfo {
+    line: usize,
     name: String,
     kind: Type,
     frame: Option<usize>,

@@ -1,9 +1,16 @@
 use std::{env, fs, io, path::Path, process::ExitCode};
 
-const USAGE: &str = "KPL 0.7\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl>";
+mod lsp;
+mod report;
+
+const USAGE: &str = "KPL 0.8\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl> | kpl lsp";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();
+    // 언어 서버: 편집기가 실행합니다. 표준 입출력으로 LSP 메시지를 주고받습니다.
+    if args.len() == 1 && matches!(args[0].to_str(), Some("lsp" | "서버")) {
+        return lsp::run();
+    }
     let [command, filename] = args.as_slice() else {
         if args.len() == 1 && (args[0] == "--help" || args[0] == "-h") {
             println!("{USAGE}");
@@ -50,135 +57,11 @@ fn main() -> ExitCode {
             }
         }
     } else {
-        let checks = program
-            .statements
-            .iter()
-            .filter(|statement| statement.kind == "검사")
-            .count();
-        let mut summary = format!(
-            "검사 통과 | 정의 {}개, 검사 {checks}개",
-            program.statements.len() - checks
-        );
-        for (label, count) in [
-            ("기준", program.frames.len()),
-            ("대상", program.entities.len()),
-            ("사건", program.events.len()),
-        ] {
-            if count > 0 {
-                summary.push_str(&format!(", {label} {count}개"));
-            }
-        }
-        for (label, count) in [
-            ("미지", program.unknowns.len()),
-            ("조건·관측", program.constraints.len()),
-            ("목표", program.goals.len()),
-            ("행위", program.verbs.len()),
-            ("문장", program.sentences.len()),
-            ("참조", program.references.len()),
-            ("규칙", program.rules.len()),
-            ("조건문", program.conditionals.len()),
-        ] {
-            if count > 0 {
-                summary.push_str(&format!(", {label} {count}개"));
-            }
-        }
-        println!("{summary}");
-
-        for unknown in &program.unknowns {
-            let show = |bound: &Option<String>, open: &str| match (bound, unknown.unit) {
-                (None, _) => open.to_string(),
-                (Some(number), Some(unit)) => format!("{number} {unit}"),
-                (Some(number), None) => number.clone(),
-            };
-            let frame = unknown
-                .frame
-                .as_ref()
-                .map_or(String::new(), |frame| format!(" ({frame} 기준)"));
-            let observed = if unknown.observed.is_some() {
-                " · 관측됨"
-            } else {
-                ""
-            };
-            println!(
-                "미지 '{}': {} ~ {}{frame}{observed}",
-                unknown.name,
-                show(&unknown.min, "하한 없음"),
-                show(&unknown.max, "상한 없음"),
-            );
-        }
-        let detail = |name: &str,
-                      method: &Option<&'static str>,
-                      outcomes: &Option<Vec<kpl::IrOutcome>>| match (
-            method, outcomes,
-        ) {
-            (Some(method), _) => {
-                let particle = if *method == "곱" { "으로" } else { "로" };
-                format!(" ({method}{particle} 계산)")
-            }
-            (None, Some(outcomes))
-                if outcomes
-                    .iter()
-                    .all(|o| o.choices.len() == 1 && o.choices.contains_key(name)) =>
-            {
-                let parts: Vec<_> = outcomes
-                    .iter()
-                    .map(|o| format!("{} {}", o.choices.values().next().unwrap_or(&""), o.value))
-                    .collect();
-                format!(" ({})", parts.join(", "))
-            }
-            (None, Some(outcomes)) if outcomes.len() <= 4 => {
-                let parts: Vec<_> = outcomes
-                    .iter()
-                    .map(|o| {
-                        let choice: Vec<_> = o
-                            .choices
-                            .iter()
-                            .map(|(rule, method)| format!("{rule} {method}"))
-                            .collect();
-                        format!("{} → {}", choice.join("·"), o.value)
-                    })
-                    .collect();
-                format!(" ({})", parts.join(", "))
-            }
-            (None, Some(outcomes)) => format!(" (방식 조합 {}가지)", outcomes.len()),
-            (None, None) => " (두 방식의 결과가 같음)".to_string(),
-        };
-        for rule in &program.rules {
-            println!(
-                "규칙 '{}': {}{}",
-                rule.name,
-                rule.value,
-                detail(&rule.name, &rule.method, &rule.outcomes)
-            );
-        }
-        for rule in &program.conditionals {
-            let name = if rule.labeled {
-                format!("'{}'", rule.name)
-            } else {
-                rule.name.clone()
-            };
-            println!(
-                "조건문 {name}: {}{}",
-                rule.value,
-                detail(&rule.name, &rule.method, &rule.outcomes)
-            );
-        }
-        for goal in &program.goals {
-            let mut line = format!("목표 '{}': {}", goal.name, goal.status);
-            if !goal.undecided_rules.is_empty() {
-                line.push_str(&format!(
-                    " (규칙의 계산 방식에 따라 다름: {})",
-                    goal.undecided_rules.join(", ")
-                ));
-            }
-            if !goal.missing_observations.is_empty() {
-                line.push_str(&format!(
-                    " (보장 여부를 확정하려면 관측 필요: {})",
-                    goal.missing_observations.join(", ")
-                ));
-            }
-            println!("{line}");
+        println!("{}", report::summary(&program));
+        for finding in report::findings(&program) {
+            println!("{}", finding.text);
         }
     }
+
     ExitCode::SUCCESS
 }
