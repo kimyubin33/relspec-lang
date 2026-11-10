@@ -234,3 +234,26 @@ fn propagation_example_ships() {
     assert_eq!(goal(&program, "깨짐확실").0, "보장");
     assert_eq!(goal(&program, "깨짐심함").0, "가능");
 }
+
+/// PROGRESS.md의 "지금 쓸 수 있는 것" 예제가 현재 컴파일러와 맞는지 확인합니다.
+#[test]
+fn progress_document_example_is_current() {
+    let text = std::fs::read_to_string("PROGRESS.md").unwrap();
+    let section = text
+        .split("### 지금 쓸 수 있는 것")
+        .nth(1)
+        .expect("section");
+    let source = section
+        .split("```text\n")
+        .nth(1)
+        .and_then(|rest| rest.split("```").next())
+        .expect("example block");
+    let program = ok(source);
+    assert_eq!(goal(&program, "마감").0, "보장");
+    assert_eq!(
+        goal(&program, "깨짐심함"),
+        ("가능", vec!["깨짐".to_string()])
+    );
+    assert_eq!(program.unknowns[0].max.as_deref(), Some("3000"));
+    assert!(text.contains(&format!("| 언어 버전 | {} |", kpl::LANGUAGE_VERSION)));
+}
