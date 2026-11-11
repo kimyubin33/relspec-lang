@@ -18,7 +18,7 @@ use crate::{CompiledProgram, IrClause, IrExpression, IrItem, IrSentenceRole};
 #[derive(Serialize, Debug, Clone, PartialEq)]
 pub struct Node {
     pub id: String,
-    /// 대상, 행위, 기준, 단위, 정의, 검사, 미지, 조건, 관측, 목표, 문장, 조건문, 규칙, 사건, 글
+    /// 대상, 행위, 기준, 단위, 정의, 검사, 미지, 조건, 관측, 목표, 문장, 조건문, 규칙, 사건, 장면, 글
     pub kind: &'static str,
     pub label: String,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -45,7 +45,7 @@ fn is_zero(count: &usize) -> bool {
 pub struct Edge {
     pub from: String,
     pub to: String,
-    /// 역할, 행위, 쓰임, 전제, 기준, 참조, 딸림, 언급
+    /// 역할, 행위, 쓰임, 전제, 기준, 단위, 포함, 참조, 딸림, 언급
     pub kind: &'static str,
     /// 역할 이름(주체, 대상, 시작 …)이나 선에 붙는 글.
     #[serde(skip_serializing_if = "String::is_empty")]
@@ -314,6 +314,32 @@ pub fn build(program: &CompiledProgram) -> Graph {
         node.line = Some(reference.line);
         node.detail = format!("참조 {}: {}", reference.number, reference.text);
         b.texts.insert(reference.line, id);
+    }
+    // 장면: 안에 든 낱말은 이미 대상의 점으로 있습니다. 거기에 채운 값과 빈칸을 적고, 포함을 선으로 잇습니다.
+    for scene in &program.scenes {
+        let scene_id = format!("장면:{}", scene.name);
+        let node = b.node(scene_id.clone(), "장면", &scene.name);
+        node.line = Some(scene.line);
+        node.detail = format!("채움 {}%", scene.fill);
+        for item in &scene.items {
+            let id = named(&item.name);
+            let mut lines: Vec<String> = item
+                .values
+                .iter()
+                .map(|v| format!("{}: {}", v.dimension, v.value))
+                .collect();
+            if !item.blanks.is_empty() {
+                lines.push(format!("빈칸: {}", item.blanks.join(", ")));
+            }
+            let node = b.node(id.clone(), "대상", &item.name);
+            node.line = Some(item.line);
+            node.detail = lines.join("\n");
+            let parent = match &item.parent {
+                Some(parent) => named(parent),
+                None => scene_id.clone(),
+            };
+            b.edge(&parent, &id, "포함", "", true);
+        }
     }
     for sentence in &program.sentences {
         let id = sentence_id(sentence.label.as_deref(), sentence.line);

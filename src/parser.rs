@@ -6,6 +6,27 @@ pub(crate) fn parse(tokens: &[Token]) -> Result<Vec<Statement>, Diagnostic> {
     Parser { tokens, index: 0 }.parse()
 }
 
+/// 토큰 몇 개를 식 하나로 읽습니다. 장면에서 타입이 있는 차원의 값을 읽을 때 씁니다.
+pub(crate) fn parse_expression(tokens: &[Token]) -> Result<Expression, Diagnostic> {
+    let last = tokens.last().expect("a value has at least one token");
+    let mut tokens = tokens.to_vec();
+    let mut end = last.renamed(String::new());
+    end.kind = Kind::End;
+    tokens.push(end);
+    let mut parser = Parser {
+        tokens: &tokens,
+        index: 0,
+    };
+    let expression = parser.expression(1)?;
+    if parser.current().kind != Kind::End {
+        return Err(parser.current().error(
+            "K200",
+            "값 하나만 적으세요. 차원이 여럿이면 쉼표로 나눕니다.",
+        ));
+    }
+    Ok(expression)
+}
+
 struct Parser<'a> {
     tokens: &'a [Token],
     index: usize,
@@ -70,6 +91,27 @@ impl Parser<'_> {
                     last
                 }
                 Kind::Rule => self.rule_statement()?,
+                Kind::Topic => {
+                    let keyword = self.take();
+                    if self.current().kind != Kind::Text || self.current().text.is_empty() {
+                        return Err(keyword.error(
+                            "K200",
+                            "'주제' 뒤에 이 파일이 무엇을 적는지 쓰세요. 예: '주제 <바람이 불다>'",
+                        ));
+                    }
+                    let mut text = self.take();
+                    // 꺾쇠는 있어도 되고 없어도 됩니다.
+                    let inner = text
+                        .text
+                        .strip_prefix('<')
+                        .and_then(|t| t.strip_suffix('>'));
+                    if let Some(inner) = inner {
+                        text.text = inner.trim().to_string();
+                    }
+                    Statement::Topic { text }
+                }
+                Kind::Word => self.word_statement()?,
+                Kind::Scene => self.scene_statement()?,
                 Kind::Minus => {
                     let dash = self.take();
                     if self.current().kind != Kind::Text || self.current().text.is_empty() {
@@ -155,6 +197,129 @@ impl Parser<'_> {
             return Err(self.current().error("K201", "적어도 한 문장을 작성하세요."));
         }
         Ok(statements)
+    }
+
+    /// `낱말 컵: 색*, 재질, 채움(정도) 2`
+    fn word_statement(&mut self) -> Result<Statement, Diagnostic> {
+        self.take();
+        let name = self.expect(
+            Kind::Identifier,
+            "새 낱말의 이름을 적으세요. 예: '낱말 컵: 색, 크기'",
+        )?;
+        self.expect(
+            Kind::Colon,
+            "낱말 이름 뒤에 ':'와 차원을 적으세요. 예: '낱말 컵: 색, 크기'",
+        )?;
+        let mut dimensions = Vec::new();
+        loop {
+            let name = self.dimension_name("차원의 이름을 적으세요.")?;
+            let required = self.current().kind == Kind::Star;
+            if required {
+                self.take();
+            }
+            let kind = if self.current().kind == Kind::LeftParen {
+                self.take();
+                let (kind, _) =
+                    self.type_name("괄호 안에는 타입을 적으세요. 예: '채움(정도)', '가로(거리)'")?;
+                self.expect(Kind::RightParen, "닫는 괄호 ')'가 필요합니다.")?;
+                Some(kind)
+            } else {
+                None
+            };
+            let weight = if self.current().kind == Kind::Number {
+                let token = self.take();
+                match token.text.parse::<u32>() {
+                    Ok(weight) if (1..=100).contains(&weight) => weight,
+                    _ => return Err(token.error("K200", "가중치는 1부터 100까지의 수입니다.")),
+                }
+            } else {
+                1
+            };
+            dimensions.push(crate::syntax::Dimension {
+                name,
+                required,
+                weight,
+                kind,
+            });
+            if self.current().kind != Kind::Comma {
+                break;
+            }
+            self.take();
+        }
+        Ok(Statement::Word { name, dimensions })
+    }
+
+    /// 차원의 이름. `거리`, `시간`, `위치`처럼 타입 이름과 같은 낱말도 차원 이름으로 쓸 수 있습니다.
+    fn dimension_name(&mut self, message: &str) -> Result<Token, Diagnostic> {
+        match self.current().kind {
+            Kind::Identifier | Kind::Type(_) => Ok(self.take()),
+            _ => Err(self.current().error("K200", message)),
+        }
+    }
+
+    /// `장면 이름`과, 그보다 들여 쓴 줄들.
+    fn scene_statement(&mut self) -> Result<Statement, Diagnostic> {
+        let keyword = self.take();
+        let name = self.expect(
+            Kind::Identifier,
+            "장면의 이름을 적으세요. 예: '장면 책상위'",
+        )?;
+        if !matches!(self.current().kind, Kind::NewLine | Kind::End) {
+            return Err(self
+                .current()
+                .error("K200", "장면의 내용은 다음 줄부터 들여 써서 적으세요."));
+        }
+        let mut members = Vec::new();
+        loop {
+            // 장면이 끝났으면 줄 끝을 넘기지 않고 돌아갑니다. 줄 끝은 바깥에서 확인합니다.
+            let before = self.index;
+            while self.current().kind == Kind::NewLine {
+                self.take();
+            }
+            if self.current().kind == Kind::End || self.current().column() <= keyword.column() {
+                self.index = before;
+                break;
+            }
+            let word = self.expect(
+                Kind::Identifier,
+                "장면 안의 줄은 낱말로 시작합니다. 예: '컵: 색 흰색'. 장면을 끝내려면 들여쓰기를 없애세요.",
+            )?;
+            let name = (self.current().kind == Kind::Identifier).then(|| self.take());
+            let mut values = Vec::new();
+            if self.current().kind == Kind::Colon {
+                self.take();
+                loop {
+                    let dimension = self
+                        .dimension_name("차원의 이름과 값을 적으세요. 예: '색 흰색, 채움 80%'")?;
+                    let mut value = Vec::new();
+                    while !matches!(self.current().kind, Kind::Comma | Kind::NewLine | Kind::End) {
+                        value.push(self.take());
+                    }
+                    if value.is_empty() {
+                        return Err(dimension.error(
+                            "K200",
+                            format!(
+                                "'{0}' 뒤에 값을 적으세요. 값을 모르면 '{0}'을 적지 않습니다. 빈칸으로 남습니다.",
+                                dimension.text
+                            ),
+                        ));
+                    }
+                    values.push((dimension, value));
+                    if self.current().kind != Kind::Comma {
+                        break;
+                    }
+                    self.take();
+                }
+            }
+            if !matches!(self.current().kind, Kind::NewLine | Kind::End) {
+                return Err(self.current().error(
+                    "K200",
+                    "낱말 뒤에는 ':'와 차원을 적습니다. 예: '컵: 색 흰색' 또는 '컵 큰컵: 색 흰색'",
+                ));
+            }
+            members.push(crate::syntax::Member { word, name, values });
+        }
+        Ok(Statement::Scene { name, members })
     }
 
     /// 쉼표로 나눈 이름 목록.

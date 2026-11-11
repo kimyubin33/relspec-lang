@@ -16,7 +16,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.12";
+pub const LANGUAGE_VERSION: &str = "0.13";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -215,6 +215,56 @@ pub struct IrText {
     pub items: Vec<IrItem>,
 }
 
+/// `낱말`로 정의한 낱말과 그 차원.
+#[derive(Serialize)]
+pub struct IrWord {
+    pub name: String,
+    pub dimensions: Vec<IrDimension>,
+}
+
+#[derive(Serialize)]
+pub struct IrDimension {
+    pub name: String,
+    /// 별표를 붙인, 꼭 적어야 하는 차원.
+    pub required: bool,
+    /// 채움 점수에서의 무게.
+    pub weight: u32,
+    #[serde(rename = "type", skip_serializing_if = "Option::is_none")]
+    pub kind: Option<&'static str>,
+}
+
+/// `장면` 하나.
+#[derive(Serialize)]
+pub struct IrScene {
+    pub name: String,
+    pub line: usize,
+    /// 채움 점수(0~100): 차원의 가중치 가운데 값을 적은 것의 비율.
+    pub fill: u32,
+    pub items: Vec<IrSceneItem>,
+}
+
+/// 장면 안의 낱말 하나.
+#[derive(Serialize)]
+pub struct IrSceneItem {
+    pub name: String,
+    pub word: String,
+    pub line: usize,
+    /// 들여쓰기의 깊이. 장면 바로 아래가 0.
+    pub depth: usize,
+    /// 이 낱말이 들어 있는 낱말.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parent: Option<String>,
+    pub values: Vec<IrFilled>,
+    /// 값을 적지 않은 차원.
+    pub blanks: Vec<String>,
+}
+
+#[derive(Serialize)]
+pub struct IrFilled {
+    pub dimension: String,
+    pub value: String,
+}
+
 /// `- 글`로 적은 딸린 줄.
 #[derive(Serialize)]
 pub struct IrItem {
@@ -376,6 +426,15 @@ pub struct CompiledProgram {
     pub rules: Vec<IrRule>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub conditionals: Vec<IrConditional>,
+    /// `주제 <글>`.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub topic: Option<String>,
+    /// `낱말`로 정의한 낱말.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub words: Vec<IrWord>,
+    /// `장면`.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub scenes: Vec<IrScene>,
     /// `본문:` 줄.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub texts: Vec<IrText>,
@@ -402,10 +461,26 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
     let tokens = syntax::scan(source)?;
     let statements = parser::parse(&tokens)?;
     let mut scope = Scope::default();
+    // 미리 정의해 둔 낱말. 같은 이름으로 다시 정의하면 그쪽을 씁니다.
+    for (name, dimensions) in BUILTIN_WORDS {
+        let dimensions = dimensions
+            .iter()
+            .map(|&(name, kind)| WordDimension {
+                name: name.to_string(),
+                required: false,
+                weight: 1,
+                kind,
+            })
+            .collect();
+        scope.words.insert(name.to_string(), (dimensions, true));
+    }
     let mut names = HashSet::new();
     let mut program = CompiledProgram {
         language_version: LANGUAGE_VERSION,
         statements: Vec::new(),
+        topic: None,
+        words: Vec::new(),
+        scenes: Vec::new(),
         texts: Vec::new(),
         mentions: Vec::new(),
         warnings: Vec::new(),
@@ -459,6 +534,8 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             Statement::Sentence { label, .. } => label.as_ref(),
             // 관측은 새 이름을 만들지 않고 미지값에 값을 기록합니다.
             // 행위와 참조는 값과 다른 이름 공간을 씁니다.
+            // 낱말과 장면은 저마다의 이름 공간을 씁니다. 장면 안의 낱말은 그 안에서 등록합니다.
+            Statement::Topic { .. } | Statement::Word { .. } | Statement::Scene { .. } => None,
             Statement::Observe { .. }
             | Statement::Verb { .. }
             | Statement::Body { .. }
@@ -489,6 +566,203 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     name,
                     is_check: true,
                     judged,
+                });
+            }
+            Statement::Topic { text } => {
+                if program.topic.is_some() {
+                    return Err(text.error("K200", "주제는 파일에 한 번만 적습니다."));
+                }
+                passages.push(passage(&text));
+                program.topic = Some(text.text);
+            }
+            Statement::Word { name, dimensions } => {
+                if scope
+                    .words
+                    .get(&name.text)
+                    .is_some_and(|(_, builtin)| !builtin)
+                {
+                    return Err(name.error(
+                        "K301",
+                        format!("낱말 '{}'은 이미 정의되어 있습니다.", name.text),
+                    ));
+                }
+                let mut seen = HashSet::new();
+                let mut declared = Vec::new();
+                for dimension in dimensions {
+                    if !seen.insert(dimension.name.text.clone()) {
+                        return Err(dimension.name.error(
+                            "K701",
+                            format!(
+                                "낱말 '{}'에 차원 '{}'을 두 번 적었습니다.",
+                                name.text, dimension.name.text
+                            ),
+                        ));
+                    }
+                    if let Some(kind) = dimension.kind {
+                        known_type(kind, &dimension.name, &scope)?;
+                    }
+                    declared.push(WordDimension {
+                        name: dimension.name.text,
+                        required: dimension.required,
+                        weight: dimension.weight,
+                        kind: dimension.kind,
+                    });
+                }
+                program.words.push(IrWord {
+                    name: name.text.clone(),
+                    dimensions: declared
+                        .iter()
+                        .map(|d| IrDimension {
+                            name: d.name.clone(),
+                            required: d.required,
+                            weight: d.weight,
+                            kind: d.kind.map(Type::name),
+                        })
+                        .collect(),
+                });
+                scope.words.insert(name.text, (declared, false));
+            }
+            Statement::Scene { name, members } => {
+                if program.scenes.iter().any(|scene| scene.name == name.text) {
+                    return Err(
+                        name.error("K301", format!("장면 '{}'은 이미 있습니다.", name.text))
+                    );
+                }
+                let mut items: Vec<IrSceneItem> = Vec::new();
+                // (들여쓰기 열, items에서의 순서). 더 들여 쓴 줄은 맨 위에 있는 것의 안에 있습니다.
+                let mut open: Vec<(usize, usize)> = Vec::new();
+                let (mut filled_weight, mut total_weight) = (0u32, 0u32);
+                for member in members {
+                    let Some((dimensions, _)) = scope.words.get(&member.word.text) else {
+                        return Err(member.word.error(
+                            "K702",
+                            format!(
+                                "'{0}'은 낱말이 아닙니다. 장면에 쓰려면 앞에서 '낱말 {0}: 차원, …'으로 정의하세요.",
+                                member.word.text
+                            ),
+                        ));
+                    };
+                    let dimensions = dimensions.clone();
+                    let label = member.name.as_ref().unwrap_or(&member.word);
+                    if !names.insert(label.text.clone()) {
+                        return Err(label.error(
+                            "K301",
+                            format!(
+                                "'{0}' 이름이 이미 있습니다. 같은 낱말을 또 쓰려면 이름을 붙이세요. 예: '{1} 둘째{1}: …'",
+                                label.text, member.word.text
+                            ),
+                        ));
+                    }
+                    let column = member.word.column();
+                    while open.last().is_some_and(|&(start, _)| start >= column) {
+                        open.pop();
+                    }
+                    let parent = open.last().map(|&(_, index)| items[index].name.clone());
+                    let depth = open.len();
+                    open.push((column, items.len()));
+
+                    let mut values: Vec<IrFilled> = Vec::new();
+                    for (dimension, tokens) in member.values {
+                        let Some(declared) = dimensions.iter().find(|d| d.name == dimension.text)
+                        else {
+                            let known: Vec<_> =
+                                dimensions.iter().map(|d| d.name.as_str()).collect();
+                            return Err(dimension.error(
+                                "K703",
+                                format!(
+                                    "낱말 '{}'에는 '{}' 차원이 없습니다. 있는 차원: {}",
+                                    member.word.text,
+                                    dimension.text,
+                                    known.join(", ")
+                                ),
+                            ));
+                        };
+                        if values.iter().any(|v| v.dimension == dimension.text) {
+                            return Err(dimension.error(
+                                "K703",
+                                format!("'{}' 차원을 두 번 적었습니다.", dimension.text),
+                            ));
+                        }
+                        let value = match declared.kind {
+                            // 타입이 있는 차원은 식으로 읽고 타입을 확인합니다.
+                            Some(kind) => {
+                                let expression = parser::parse_expression(&tokens)?;
+                                let Bound { value, .. } = bind(expression, &scope)?;
+                                if value.is_symbolic() || value.worlds.is_some() {
+                                    return Err(dimension.error(
+                                        "K406",
+                                        format!("'{}'에는 확정된 값을 적으세요.", dimension.text),
+                                    ));
+                                }
+                                check_declared_type(&dimension, kind, &value, &scope)?;
+                                match kind.base_unit() {
+                                    Some(unit) => format!("{} {unit}", value.display()),
+                                    None => value.display(),
+                                }
+                            }
+                            None => Token::join(&tokens),
+                        };
+                        values.push(IrFilled {
+                            dimension: dimension.text,
+                            value,
+                        });
+                    }
+                    let mut blanks = Vec::new();
+                    for declared in &dimensions {
+                        total_weight += declared.weight;
+                        if values.iter().any(|v| v.dimension == declared.name) {
+                            filled_weight += declared.weight;
+                        } else if declared.required {
+                            return Err(member.word.error(
+                                "K704",
+                                format!(
+                                    "'{}'의 '{}'은 꼭 적어야 하는 차원입니다. 예: '{}: {} 값'",
+                                    label.text, declared.name, label.text, declared.name
+                                ),
+                            ));
+                        } else {
+                            blanks.push(declared.name.clone());
+                        }
+                    }
+                    // 장면 안의 낱말은 문장에서 대상으로 쓸 수 있습니다.
+                    let entity = Value {
+                        kind: Type::Entity,
+                        frame: None,
+                        number: Integer::from_small(program.entities.len() as u32),
+                        label: Some(label.text.clone()),
+                        terms: BTreeMap::new(),
+                        scale: 0,
+                        worlds: None,
+                    };
+                    scope.values.insert(label.text.clone(), entity);
+                    program.entities.push(IrEntity {
+                        name: label.text.clone(),
+                    });
+                    items.push(IrSceneItem {
+                        name: label.text.clone(),
+                        word: member.word.text.clone(),
+                        line: member.word.line(),
+                        depth,
+                        parent,
+                        values,
+                        blanks,
+                    });
+                }
+                if items.is_empty() {
+                    return Err(name.error(
+                        "K200",
+                        "장면이 비어 있습니다. 다음 줄부터 들여 써서 낱말을 적으세요.",
+                    ));
+                }
+                program.scenes.push(IrScene {
+                    name: name.text.clone(),
+                    line: name.line(),
+                    fill: if total_weight == 0 {
+                        100
+                    } else {
+                        filled_weight * 100 / total_weight
+                    },
+                    items,
                 });
             }
             Statement::Unit { name } => {
@@ -1530,7 +1804,41 @@ struct Scope {
     conditions: Vec<(sentence::Pattern, usize)>,
     /// `단위`로 선언한 단위 이름.
     units: HashSet<String>,
+    /// 낱말 이름 → (차원들, 미리 정의된 낱말인지)
+    words: HashMap<String, (Vec<WordDimension>, bool)>,
 }
+
+#[derive(Clone)]
+struct WordDimension {
+    name: String,
+    required: bool,
+    weight: u32,
+    kind: Option<Type>,
+}
+
+/// 미리 정의해 둔 낱말과 그 차원.
+const BUILTIN_WORDS: &[(&str, &[(&str, Option<Type>)])] = &[
+    (
+        "보는자리",
+        &[
+            ("거리", Some(Type::Distance)),
+            ("높이", None),
+            ("방향", None),
+            ("화각", None),
+        ],
+    ),
+    (
+        "빛",
+        &[
+            ("방향", None),
+            ("세기", Some(Type::Degree)),
+            ("색", None),
+            ("때", None),
+        ],
+    ),
+    ("배경", &[("내용", None)]),
+    ("날씨", &[("상태", None), ("세기", Some(Type::Degree))]),
+];
 
 impl Default for Closure {
     fn default() -> Self {

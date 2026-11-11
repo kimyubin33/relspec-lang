@@ -2,7 +2,7 @@
   "name": "relspec-kpl",
   "displayName": "RelSpec (KPL)",
   "description": "RelSpec 관계 명세 언어(.kpl): 문법 색칠, 실시간 진단, 판정 결과 표시, 설명, 자동 완성, 정의로 이동",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "publisher": "kimyubin33",
   "license": "UNLICENSED",
   "private": true,
@@ -63,7 +63,10 @@
     "configurationDefaults": {
       "[kpl]": {
         "editor.wordWrap": "on",
-        "editor.wrappingIndent": "indent"
+        "editor.wrappingIndent": "indent",
+        "editor.insertSpaces": true,
+        "editor.tabSize": 2,
+        "editor.detectIndentation": false
       }
     },
     "menus": {

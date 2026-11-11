@@ -41,6 +41,8 @@ pub(crate) fn summary(program: &CompiledProgram) -> String {
         ("문장", program.sentences.len()),
         ("참조", program.references.len()),
         ("본문", program.texts.len()),
+        ("낱말", program.words.len()),
+        ("장면", program.scenes.len()),
         ("규칙", program.rules.len()),
         ("조건문", program.conditionals.len()),
     ] {
@@ -79,6 +81,35 @@ pub(crate) fn findings(program: &CompiledProgram) -> Vec<Finding> {
                 unknown.name,
                 show(&unknown.min, "하한 없음"),
                 show(&unknown.max, "상한 없음"),
+            ),
+        });
+    }
+
+    // 장면: 채움 점수와, 값을 적지 않은 차원(빈칸).
+    for scene in &program.scenes {
+        let blanks: Vec<String> = scene
+            .items
+            .iter()
+            .flat_map(|item| {
+                item.blanks
+                    .iter()
+                    .map(move |blank| format!("{}.{blank}", item.name))
+            })
+            .collect();
+        let blank_text = if blanks.is_empty() {
+            "빈칸 없음".to_string()
+        } else {
+            format!("빈칸 {}개: {}", blanks.len(), blanks.join(", "))
+        };
+        findings.push(Finding {
+            name: scene.name.clone(),
+            line: scene.line,
+            level: Level::Info,
+            text: format!(
+                "장면 '{}': 낱말 {}개, 채움 {}% ({blank_text})",
+                scene.name,
+                scene.items.len(),
+                scene.fill
             ),
         });
     }

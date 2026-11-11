@@ -139,6 +139,12 @@ pub(crate) enum Kind {
     UnitDeclaration,
     /// `본문: 글`
     Body,
+    /// `주제 <글>`
+    Topic,
+    /// `낱말 이름: 차원, …`
+    Word,
+    /// `장면 이름`
+    Scene,
     /// `참조 N:` 뒤의 본문. 낱말로 나누지 않고 그대로 보관합니다.
     Text,
     Axis(Axis),
@@ -233,6 +239,9 @@ fn classify_name(name: &str) -> Kind {
         "참조" => Kind::Reference,
         "단위" => Kind::UnitDeclaration,
         "본문" => Kind::Body,
+        "주제" => Kind::Topic,
+        "낱말" => Kind::Word,
+        "장면" => Kind::Scene,
         "정도" => Kind::Type(Type::Degree),
         "시간축" => Kind::Axis(Axis::Time),
         "위치축" => Kind::Axis(Axis::Space),
@@ -312,12 +321,15 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
     let normalizer = ComposingNormalizerBorrowed::new_nfc();
     let mut tokens = Vec::new();
     let mut lines = normalized.split('\n').enumerate().peekable();
+    // `장면` 줄의 열. 그보다 들여 쓴 줄은 장면 안의 줄입니다.
+    let mut scene: Option<usize> = None;
 
     while let Some((i, text)) = lines.next() {
         let line = i + 1;
         let mut characters = text.char_indices().peekable();
         let mut column = 1;
         let mut count = 0;
+        let mut in_scene = false;
 
         while let Some((start, ch)) = characters.next() {
             let token_column = column;
@@ -420,13 +432,24 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                         .as_slice(),
                     [Kind::Reference, Kind::Number, Kind::Colon]
                 );
-            let sentence_note =
-                count >= 3 && kind == Kind::Colon && line_tokens[0].kind == Kind::Identifier;
+            if count == 1 {
+                in_scene = scene.is_some_and(|start| token_column > start);
+                if !in_scene {
+                    scene = (kind == Kind::Scene).then_some(token_column);
+                }
+            }
+            // 장면 안의 줄(`컵 큰컵: 색 흰색`)에서는 ':' 뒤도 낱말로 나눕니다.
+            let sentence_note = !in_scene
+                && count >= 3
+                && kind == Kind::Colon
+                && line_tokens[0].kind == Kind::Identifier;
             // `본문: 글`
             let body_text = count == 2 && kind == Kind::Colon && line_tokens[0].kind == Kind::Body;
             // `- 글`: 위의 문장·참조·본문에 딸린 줄
             let item_text = count == 1 && kind == Kind::Minus;
-            if reference_body || sentence_note || body_text || item_text {
+            // `주제 <글>`
+            let topic_text = count == 1 && kind == Kind::Topic;
+            if reference_body || sentence_note || body_text || item_text || topic_text {
                 let rest = characters
                     .peek()
                     .map_or(text.len(), |&(position, _)| position);
@@ -456,6 +479,25 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
         });
     }
     Ok(tokens)
+}
+
+/// 낱말의 차원 하나. `색*`, `채움(정도) 2`
+pub(crate) struct Dimension {
+    pub(crate) name: Token,
+    /// 별표를 붙인, 꼭 적어야 하는 차원.
+    pub(crate) required: bool,
+    /// 채움 점수에서 이 차원이 차지하는 무게. 적지 않으면 1.
+    pub(crate) weight: u32,
+    pub(crate) kind: Option<Type>,
+}
+
+/// 장면 안의 줄 하나. `컵 큰컵: 색 흰색, 채움 80%`
+pub(crate) struct Member {
+    /// 줄의 첫 토큰. 열이 들여쓰기의 깊이입니다.
+    pub(crate) word: Token,
+    pub(crate) name: Option<Token>,
+    /// (차원 이름, 값의 토큰들)
+    pub(crate) values: Vec<(Token, Vec<Token>)>,
 }
 
 pub(crate) enum Expression {
@@ -544,6 +586,20 @@ pub(crate) enum Statement {
     /// `본문: 글`. 낱말로 나누지 않는 자유로운 글 한 줄.
     Body {
         text: Token,
+    },
+    /// `주제 <글>`. 이 파일이 무엇을 적는지.
+    Topic {
+        text: Token,
+    },
+    /// `낱말 컵: 색*, 재질, 채움(정도) 2`
+    Word {
+        name: Token,
+        dimensions: Vec<Dimension>,
+    },
+    /// `장면 이름`과 그 아래에 들여 쓴 줄들.
+    Scene {
+        name: Token,
+        members: Vec<Member>,
     },
     /// `- 글`. 바로 위의 문장·참조·본문에 딸린 글 한 줄.
     Item {
