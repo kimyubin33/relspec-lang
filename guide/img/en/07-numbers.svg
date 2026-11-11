@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 300" width="880" height="300" role="img" aria-label="Three numbers with different meanings: degree, agreement, track record">
+<title>Three numbers with different meanings: degree, agreement, track record</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#667085"/></marker></defs>
+<rect x="0.5" y="0.5" width="879" height="299" rx="12" fill="#ffffff" stroke="#d0d5dd"/>
+<rect x="40" y="40" width="256" height="200" rx="8" fill="#fff" stroke="#0e9bb5" stroke-width="1.5"/>
+<text x="60" y="76" font-size="22" fill="#0e9bb5" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">Degree</text>
+<text x="276" y="74" font-size="12.5" fill="#2e9e5b" text-anchor="end" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">works now</text>
+<text x="60" y="106" font-size="14" fill="#1f2430" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">how much is it so?</text>
+<text x="60" y="164" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">written by the author</text>
+<rect x="56" y="184" width="224" height="40" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<text x="168" y="209" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">the cup is 80% full</text>
+<rect x="312" y="40" width="256" height="200" rx="8" fill="#fff" stroke="#7a52cc" stroke-width="1.5"/>
+<text x="332" y="76" font-size="22" fill="#7a52cc" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">Agreement</text>
+<text x="548" y="74" font-size="12.5" fill="#c98a12" text-anchor="end" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">planned</text>
+<text x="332" y="106" font-size="14" fill="#1f2430" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">do readings converge</text>
+<text x="332" y="126" font-size="14" fill="#1f2430" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">on one answer?</text>
+<text x="332" y="164" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">measured by AI check</text>
+<rect x="328" y="184" width="224" height="40" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<text x="440" y="209" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">direction: agreement 45%</text>
+<rect x="584" y="40" width="256" height="200" rx="8" fill="#fff" stroke="#2e9e5b" stroke-width="1.5"/>
+<text x="604" y="76" font-size="22" fill="#2e9e5b" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">Track record</text>
+<text x="820" y="74" font-size="12.5" fill="#c98a12" text-anchor="end" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">planned</text>
+<text x="604" y="106" font-size="14" fill="#1f2430" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">how well has this word</text>
+<text x="604" y="126" font-size="14" fill="#1f2430" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">worked so far?</text>
+<text x="604" y="164" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">accumulated by the tool</text>
+<rect x="600" y="184" width="224" height="40" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<text x="712" y="209" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">wind: passed 78% (41 runs)</text>
+<text x="40" y="276" font-size="14" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">The three are never mixed. A track record always shows its run count.</text>
+</svg>

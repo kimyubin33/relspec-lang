@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 420" width="880" height="420" role="img" aria-label="A scene written with indentation and the nesting it means">
+<title>A scene written with indentation and the nesting it means</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#667085"/></marker></defs>
+<rect x="0.5" y="0.5" width="879" height="419" rx="12" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="40" y="44" font-size="17" fill="#1f2430" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">Write this</text>
+<text x="480" y="44" font-size="17" fill="#1f2430" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">you get this structure</text>
+<rect x="40" y="64" width="400" height="316" rx="8" fill="#0f1220" stroke="#0f1220" stroke-width="1"/>
+<text x="58" y="104" font-size="14.5" fill="#e6e8f4" text-anchor="start" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">장면 책상위</text>
+<text x="58" y="134" font-size="14.5" fill="#e6e8f4" text-anchor="start" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">  책상: 재질 나무, 가로 120 센티미터</text>
+<text x="58" y="164" font-size="14.5" fill="#e6e8f4" text-anchor="start" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">    컵: 색 흰색, 채움 80%</text>
+<text x="58" y="194" font-size="14.5" fill="#e6e8f4" text-anchor="start" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">    책: 색 파랑</text>
+<text x="58" y="224" font-size="14.5" fill="#e6e8f4" text-anchor="start" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">  빛: 방향 왼쪽 창문, 세기 80%</text>
+<text x="58" y="254" font-size="14.5" fill="#e6e8f4" text-anchor="start" font-weight="400" font-family="'D2Coding','Consolas','Menlo','Noto Sans Mono CJK KR',monospace" xml:space="preserve">  보는자리: 거리 1 미터</text>
+<line x1="58" y1="290" x2="58" y2="330" stroke="#8b93a7" stroke-width="1.4"/>
+<text x="70" y="316" font-size="13" fill="#aab0c8" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">Indent one level and</text>
+<text x="70" y="336" font-size="13" fill="#aab0c8" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">the line is inside the word above</text>
+<rect x="480" y="64" width="360" height="316" rx="8" fill="#fff5f8" stroke="#ff8fab" stroke-width="1"/>
+<text x="496" y="88" font-size="14" fill="#c2185b" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">장면 책상위</text>
+<rect x="500" y="104" width="320" height="150" rx="8" fill="#eefaff" stroke="#0e9bb5" stroke-width="1"/>
+<text x="516" y="128" font-size="15" fill="#0e9bb5" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">desk</text>
+<text x="566" y="128" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">material wood · width 120 cm</text>
+<rect x="520" y="144" width="135" height="92" rx="8" fill="#fff" stroke="#0e9bb5" stroke-width="1"/>
+<text x="534" y="168" font-size="15" fill="#0e9bb5" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">cup</text>
+<text x="534" y="190" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">colour white</text>
+<text x="534" y="210" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">fill 80%</text>
+<rect x="668" y="144" width="135" height="92" rx="8" fill="#fff" stroke="#0e9bb5" stroke-width="1"/>
+<text x="682" y="168" font-size="15" fill="#0e9bb5" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">book</text>
+<text x="682" y="190" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">colour blue</text>
+<rect x="500" y="268" width="152" height="92" rx="8" fill="#fff" stroke="#c98a12" stroke-width="1"/>
+<text x="514" y="292" font-size="15" fill="#c98a12" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">light</text>
+<text x="514" y="314" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">direction: window</text>
+<text x="514" y="334" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">strength 80%</text>
+<rect x="668" y="268" width="152" height="92" rx="8" fill="#fff" stroke="#7a52cc" stroke-width="1"/>
+<text x="682" y="292" font-size="15" fill="#7a52cc" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">viewpoint</text>
+<text x="682" y="314" font-size="13" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">distance 1 m</text>
+</svg>

@@ -7,6 +7,7 @@
 - 실행 파일은 `aha`, 파일 확장자는 `.aha`입니다. 0.13까지의 이름은 RelSpec이었고(명령 `kpl`, 확장자 `.kpl`), 저장소 주소는 그대로 `relspec-lang`입니다.
 - 그림마다 **지금 동작하는 것**과 **계획**을 구분해 표시했습니다. 지금 버전은 0.14입니다.
 - 자세한 문법과 이론은 [교재](../book/README.md)에, 앞으로의 설계는 [설계안](../DESIGN.md)에 있습니다.
+- English: the same figures with English labels are in `img/en/` and are used in the [README](../README.md) and the [English textbook](../book-en/README.md).
 
 ## 1. 왜 필요한가: 낱말은 대부분을 생략한다
 

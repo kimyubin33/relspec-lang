@@ -1,16 +1,345 @@
 # AHAA — AI-bound Human language, Assessed by AI
 
-**A**I에게 전할 말을, 사람(**H**uman)이, **A**I의 검사(**A**ssessment)를 받아 다듬는 언어. "아하"라고 읽습니다.
+**[English](#english)** · **[한국어](#한국어)**
 
-> 그림으로 먼저 보려면 **[AHAA 그림 설명서](guide/README.md)** 를 읽으세요.
+<a id="english"></a>
+
+AHAA (pronounced "aha", 아하) is a small language for writing down what you want to tell an AI **without silently leaving things out**. You define each word as a bundle of dimensions, describe a scene with those words, and a compiler reports which dimensions you left blank and how complete the description is.
+
+The name reads: **A**I-bound **H**uman language, **A**ssessed by **A**I. The keywords are Korean (the author's language); this page and the [English textbook](book-en/README.md) gloss every keyword in English.
+
+| | |
+| --- | --- |
+| Status | Version 0.14. A working compiler in Rust, a VS Code extension with a language server, 109 tests. |
+| Works today | Everything marked **computed** on this page. |
+| Not built yet | Everything that needs an AI model: the AI check, sending text to an image model, word statistics. They are marked **planned**. |
+| Read next | [English textbook](book-en/README.md) · [Korean textbook](book/README.md) (full edition) · [Illustrated guide, Korean](guide/README.md) · [Design draft, Korean](DESIGN.md) |
+
+## 1. The problem: a word omits most of what it means
+
+![Ordinary speech omits the dimensions of a word; AHAA shows them as blanks](guide/img/en/01-omit.svg)
+
+"There is a cup" says nothing about the cup's colour, material, size or how full it is. Between people this is fine: the listener fills the gaps from context. An image model fills them too, but differently every time, and the writer never sees **which** gaps were left.
+
+AHAA does not try to make the AI understand a new language. It works on the writer's side: a word is a **bundle of dimensions**, and a dimension without a value does not disappear. It stays visible as a **blank**.
+
+## 2. Define a word
+
+![Parts of a word definition: a star means required, a number is a weight, parentheses give a type](guide/img/en/02-word.svg)
+
+```text
+낱말 컵: 색* 3, 재질, 채움(정도) 2
+```
+
+Read it as: *word* `cup`: `colour` (required, weight 3), `material`, `fill` (a degree, weight 2).
+
+| Notation | Meaning |
+| --- | --- |
+| `색*` | A required dimension. Leaving it empty is an error, not a blank. |
+| `색 3` | A weight from 1 to 100: how much this dimension matters. Default 1. |
+| `채움(정도)` | The type of the value: degree, distance, duration and so on. Default: free text. |
+
+The word does not have to exist in any dictionary. The dimensions in the definition are all there is to it.
+
+## 3. Describe a scene
+
+![A scene written with indentation becomes a containment structure](guide/img/en/03-scene.svg)
+
+```text
+낱말 책상: 재질, 가로(거리)
+낱말 컵: 색* 3, 재질, 채움(정도) 2
+
+장면 책상위
+  책상: 재질 나무, 가로 120 센티미터
+    컵: 색 흰색, 채움 80%
+  빛: 방향 왼쪽 창문, 세기 80%
+```
+
+| Korean | English |
+| --- | --- |
+| `장면 책상위` | scene `on-the-desk` |
+| `책상: 재질 나무, 가로 120 센티미터` | desk: material wood, width 120 cm |
+| `컵: 색 흰색, 채움 80%` | cup: colour white, fill 80% |
+| `빛: 방향 왼쪽 창문, 세기 80%` | light: direction left window, strength 80% |
+
+A line indented one level further is **inside** the word above it, so the cup is on the desk. Four words are built in: `보는자리` (viewpoint), `빛` (light), `배경` (background) and `날씨` (weather).
+
+## 4. Blanks and the fill score — computed
+
+![The fill score is the weight of filled dimensions divided by the weight of all dimensions](guide/img/en/04-fill.svg)
+
+Running `aha 검사` (*check*) on the file above prints:
+
+```text
+장면 '책상위': 낱말 3개, 채움 75% (빈칸 3개: 컵.재질, 빛.색, 빛.때)
+```
+
+That is: scene `on-the-desk`: 3 words, **fill 75%**, 3 blanks: `cup.material`, `light.colour`, `light.time`.
+
+- **Fill score** = sum of the weights of the dimensions that have a value ÷ sum of the weights of all dimensions. Here 9 ÷ 12.
+- It is arithmetic. The same text always gives the same number.
+- A blank is not an error. You now know what you left out and can decide whether to write it.
+- A required dimension left empty **is** an error:
+
+```text
+b.aha(3,3): error K704: '컵'의 '색'은 꼭 적어야 하는 차원입니다. 예: '컵: 색 값'
+```
+
+("`colour` of `cup` is a required dimension.")
+
+## 5. What it borrows from HTML, and what it adds
+
+![Elements, attributes and nesting come from HTML; relations, degree and time are added](guide/img/en/05-html.svg)
+
+The structure is modelled on HTML: a word is like an element, a dimension like an attribute, indentation like nesting. HTML stops at "what is inside what". AHAA adds relations, conditions, degrees, and time, position and units:
+
+```text
+행위 떨어지다, 깨지다: 주체
+컵이 70% 떨어졌다
+컵이 떨어지면 컵이 80% 깨진다
+```
+
+| Korean | English |
+| --- | --- |
+| `행위 떨어지다, 깨지다: 주체` | actions `fall`, `break`: each needs an agent |
+| `컵이 70% 떨어졌다` | the cup fell, to degree 70% |
+| `컵이 떨어지면 컵이 80% 깨진다` | if the cup falls, the cup breaks, with rule strength 80% |
+
+The compiler carries the degree through the rule and reports both standard ways of combining them:
+
+```text
+조건문 11행: 56%~70% (최소 70%, 곱 56%)
+```
+
+(conditional on line 11: 56% to 70%; minimum gives 70%, product gives 56%.)
+
+## 6. The graph: the text becomes a network — computed
+
+`aha 그래프 file.aha` (*graph*) writes an HTML page. Everything you wrote becomes a node, and every relation an edge.
+
+![Graph of a scene: scene, words, actions and sentences are nodes; containment and roles are edges](guide/img/graph-scene.png)
+
+A sentence with a degree gets an arc around its node, and a conditional draws the path along which the degree travels.
+
+![Graph of conditionals: degree travels from sentence to sentence](guide/img/graph-degree.png)
+
+Click a node and only what is connected to it remains, with the list of relations on the right.
+
+![Selecting a node keeps only what is connected to it](guide/img/graph-select.png)
+
+- A **solid** edge is a relation the compiler verified from the grammar.
+- A **dotted** edge marks a place where a declared name appears in free text. The meaning of that text is not verified.
+- Parts that are not connected to anything else are reported as separate components.
+
+## 7. Two checks, never averaged
+
+![The computed check and the AI check sit side by side and produce a verdict](guide/img/en/06-checks.svg)
+
+| | Computed check | AI check |
+| --- | --- | --- |
+| What it does | Grammar, units, required dimensions, blanks, fill score, graph connectivity | Reads the text several times and measures whether the readings agree |
+| Result | A guarantee. Same text, same result | An estimate. Can vary between runs |
+| Status | **Works today** (position contradictions are planned) | **Planned** |
+
+The two scores are not averaged. An average would let a text with a contradiction pass because its AI score happens to be high. Any error from the computed check blocks the text regardless of scores.
+
+## 8. Three numbers that are kept apart
+
+![Degree, agreement and track record are different numbers](guide/img/en/07-numbers.svg)
+
+| Number | Meaning | Who sets it | Status |
+| --- | --- | --- | --- |
+| Degree (정도) | How much something is the case | The writer | Works today |
+| Agreement (일치) | How much repeated readings converge | The AI check | Planned |
+| Track record (실적) | How well this word has worked so far | Accumulated by the tool, always shown with a count | Planned |
+
+## 9. What exactly is measured
+
+A fair objection to this project is that the idea is too large to measure. This section narrows it to quantities with an operational definition, and separates what is measured now from what is only planned.
+
+**Measured today (deterministic).**
+
+| Quantity | Definition | Where it appears |
+| --- | --- | --- |
+| Blank count | Number of declared dimensions in a scene that have no value | `aha 검사` |
+| Fill score | Σ weight(filled dimensions) ÷ Σ weight(all declared dimensions) × 100, rounded down | `aha 검사` |
+| Components | Number of connected components in the graph of names, sentences and scenes | `aha 그래프` |
+| Prose warnings | Count of five fixed patterns in free text: a number that duplicates a definition, a vague adverb, an unresolved demonstrative, a declared name written with a space, a line over 80 characters | `aha 검사` |
+| Degree range | Result of a chain of conditionals under minimum and under product | `aha 검사` |
+
+**Planned, with the definition fixed in advance.**
+
+| Quantity | Definition | Needs |
+| --- | --- | --- |
+| Agreement, per dimension | An AI model reads the same text N times and fills each blank; agreement is the share of readings that give the same value. Reported as a range, not one number | An AI model |
+| Reconstruction similarity | A scene is photographed, described in AHAA, and an image model draws from the text alone; the result is compared with the photograph | An image model and a comparison method (not yet chosen) |
+| Track record, per word | Passes ÷ trials over past checks of texts that use the word, always shown with the trial count | Accumulated check logs |
+
+**What the fill score does not say.** It measures how much of what you *declared* you filled in, not how well the scene is described. Declare two dimensions, fill both, and the score is 100%. The weights are currently chosen by the writer, not measured.
+
+**The two claims this project rests on.** Neither has been tested yet.
+
+1. *Writers leave out dimensions without noticing, and a list of blanks makes their descriptions more complete.* Test: the same people describe the same scenes with and without the blank list; compare the number of dimensions specified.
+2. *A more complete description gives a reconstruction closer to the original.* Test: for the same scene, compare reconstruction similarity across descriptions with different fill scores.
+
+If the second claim fails, the fill score is not a useful number and the weights need to come from measurement. The project is built in steps so that this is found out early (step 4 below).
+
+**What is not claimed.** That AI models understand this notation better than plain English or Korean. Models are trained mostly on natural language and code, and nothing here changes that. The claim is about the writer: a structure that shows what is missing.
+
+## 10. Roadmap
+
+![Step 1 of six is done](guide/img/en/08-steps.svg)
+
+| Step | Content | Status |
+| --- | --- | --- |
+| 1 | Words and scenes, blanks and fill score | Done (0.13) |
+| 2 | Rules for positions between words, and contradiction checks | Planned |
+| 3 | A split view: text on the left, a computed layout on the right | Planned |
+| 4 | Send to an image model, compare with a real photograph | Planned |
+| 5 | AI check and the overall verdict | Planned |
+| 6 | Word track record and edge weights | Planned |
+
+Steps 1 to 3 are pure computation. There is one success criterion: **describe a scene you see in this language, and measure how close an image model's drawing from that text alone comes to the scene.** Step 4 is the first time this is measured.
+
+## 11. Try it
+
+You need Rust. On Windows PowerShell:
+
+```powershell
+git clone https://github.com/kimyubin33/relspec-lang.git
+cd relspec-lang
+cargo build --release
+.\target\release\aha.exe 검사 examples\장면.aha
+.\target\release\aha.exe 그래프 examples\장면.aha
+```
+
+On Linux or macOS use `./target/release/aha check examples/장면.aha` and `./target/release/aha graph examples/장면.aha`. The commands have English aliases (`check`, `compile`, `graph`); the messages are in Korean.
+
+The first command prints blanks and the fill score. The second writes the graph to `examples/장면.그래프.html`; open it in a browser. For colouring and live checking in VS Code, see the [extension notes](editors/vscode/README.md) (Korean).
+
+## 12. Keywords at a glance
+
+| Korean | Reading | English | Use |
+| --- | --- | --- | --- |
+| `주제` | juje | topic | `주제 <a desk by the window>` at the top of a file |
+| `낱말` | natmal | word | defines a word and its dimensions |
+| `장면` | jangmyeon | scene | starts an indented scene |
+| `정의` | jeong-ui | define | names a fixed value |
+| `검사` | geomsa | check | a condition that must be true |
+| `단위` | danwi | unit | declares a custom unit |
+| `대상` | daesang | object | declares a thing sentences can mention |
+| `행위` | haeng-wi | action | declares a verb and the roles it requires |
+| `미지` / `조건` / `목표` | miji / jogeon / mokpyo | unknown / constraint / goal | values not yet known, and what must hold |
+| `본문` | bonmun | prose | a line of free text that the prose check reads |
+| `정도` | jeongdo | degree | the type of values such as `80%` |
+
+The [English textbook](book-en/README.md) explains each of these with examples that are compiled by the test suite.
+
+## Known limits
+
+- Text cannot carry as much information as a photograph. The aim is "recognisably the same scene", not a perfect copy.
+- A dimension without a type holds free text, and the compiler does not check its meaning. It does not know that two words for "white" are the same colour.
+- Positions between words (left of, in front of) cannot be written yet. Only containment can.
+- Nothing that involves an AI model has been built.
+- The keywords are Korean. An English keyword set is not implemented.
+
+Until 0.13 the language was called RelSpec (command `kpl`, extension `.kpl`). The repository address is still `relspec-lang`.
+
+---
+
+<a id="한국어"></a>
+
+# AHAA (아하) — 한국어 설명
+
+**[English](#english)** · **한국어**
+
+**A**I에게 전할 말을, 사람(**H**uman)이, **A**I의 검사(**A**ssessment)를 받아 다듬는 언어. "아하"라고 읽습니다.
 
 AHAA는 사람이 AI에게 전할 내용을 빠뜨린 것 없이 적도록 돕는 언어입니다. 낱말을 차원의 묶음으로 정의하고, 시간·공간·사건·정도의 관계를 적으며, 컴파일러가 그 글을 계산으로 검사합니다. 한글 문법으로 씁니다.
 
-이름의 네 글자는 **A**I-bound(AI에게 가는) **H**uman language(사람의 말), **A**ssessed by **A**I(AI가 검사하는)입니다. 검사는 계산으로 하는 것과 AI가 하는 것 두 가지이며, 지금은 계산 검사가 동작하고 AI 검사는 [설계안](DESIGN.md)의 뒷단계입니다.
+| | |
+| --- | --- |
+| 상태 | 0.14. Rust로 만든 컴파일러, VS Code 확장과 언어 서버, 시험 109개 |
+| 지금 동작 | 아래에서 **계산**이라고 적은 것 전부 |
+| 아직 없음 | AI가 들어가는 부분(AI 검사, 그림 AI로 보내기, 낱말의 통계). **계획**이라고 적었습니다 |
+| 더 읽기 | [교재](book/README.md) · [영문 교재](book-en/README.md) · [그림 설명서](guide/README.md) · [설계안](DESIGN.md) · [설계 방향](VISION.md) · [개발 현황](PROGRESS.md) · [구현 상태](DEVELOPMENT.md) |
 
-0.13까지의 이름은 RelSpec(*Relation Specification*)이었고, 명령은 `kpl`, 확장자는 `.kpl`이었습니다. 0.14에서 이름을 AHAA로, 명령을 `aha`로, 확장자를 `.aha`로 바꿨습니다. 저장소 주소는 그대로 `relspec-lang`입니다.
+0.13까지의 이름은 RelSpec이었고, 명령은 `kpl`, 확장자는 `.kpl`이었습니다. 0.14에서 이름을 AHAA로, 명령을 `aha`로, 확장자를 `.aha`로 바꿨습니다. 저장소 주소는 그대로 `relspec-lang`입니다.
 
-현재는 Rust로 구현한 0.14 컴파일러이며, VS Code에서 코드처럼 쓸 수 있는 [확장](editors/vscode/README.md)과 언어 서버가 들어 있습니다. 언어의 목표와 이론적 근거는 [설계 방향](VISION.md)에 정리했습니다. 기초부터 이론까지 배우려면 [AHAA 언어 교재](book/README.md)를 읽으세요. 명령 실행 파일 이름은 `aha`, 소스 확장자는 `.aha`입니다. 개발 방식과 어디까지 개발되었는지, 앞으로의 계획은 [개발 현황](PROGRESS.md)에, 버전별 세부 구현 상태는 [개발 방향과 구현 상태](DEVELOPMENT.md)에 정리했습니다.
+## 한눈에 보기
+
+### 낱말은 대부분을 생략한다
+
+![보통의 말은 낱말의 차원을 생략하고, AHAA는 빈칸으로 보여 준다](guide/img/01-omit.svg)
+
+"컵이 있다"에는 컵의 색도, 재질도, 크기도 없습니다. 그림을 그리는 AI는 적히지 않은 부분을 매번 다르게 지어내고, 쓰는 사람은 무엇을 빠뜨렸는지 모르고 지나갑니다. AHAA에서 낱말은 **차원의 묶음**이고, 값을 적지 않은 차원은 **빈칸**으로 남아 눈에 보입니다.
+
+### 낱말을 정의하고 장면을 적는다
+
+![낱말 정의의 각 부분: 별표는 필수, 수는 가중치, 괄호는 타입](guide/img/02-word.svg)
+
+![들여쓰기로 적은 장면이 포함 구조가 된다](guide/img/03-scene.svg)
+
+```text
+낱말 책상: 재질, 가로(거리)
+낱말 컵: 색* 3, 재질, 채움(정도) 2
+
+장면 책상위
+  책상: 재질 나무, 가로 120 센티미터
+    컵: 색 흰색, 채움 80%
+  빛: 방향 왼쪽 창문, 세기 80%
+```
+
+### 빈칸과 채움 점수 (계산)
+
+![채움 점수는 값을 적은 차원의 무게를 모든 차원의 무게로 나눈 것](guide/img/04-fill.svg)
+
+```text
+장면 '책상위': 낱말 3개, 채움 75% (빈칸 3개: 컵.재질, 빛.색, 빛.때)
+```
+
+### HTML에서 본뜬 것과 더한 것
+
+![HTML의 요소·속성·중첩에 관계·정도·시간을 더했다](guide/img/05-html.svg)
+
+### 연결망 (계산)
+
+![장면의 연결망](guide/img/graph-scene.png)
+
+![조건문의 연결망: 정도가 문장에서 문장으로 전해진다](guide/img/graph-degree.png)
+
+### 두 가지 검사와 세 가지 수
+
+![계산 검사와 AI 검사를 나란히 두고 판정을 낸다](guide/img/06-checks.svg)
+
+![정도, 일치, 실적은 서로 다른 수다](guide/img/07-numbers.svg)
+
+두 검사의 점수는 평균 내지 않습니다. 계산 검사의 오류가 하나라도 있으면 점수와 상관없이 사용 불가입니다.
+
+### 무엇을 재는가
+
+"개념이 너무 커서 재기 어렵다"는 지적에 대한 답으로, 재는 양을 좁혀 정의했습니다.
+
+| 양 | 정의 | 상태 |
+| --- | --- | --- |
+| 빈칸 수 | 장면에 선언된 차원 가운데 값이 없는 것의 수 | 계산, 지금 동작 |
+| 채움 점수 | 값을 적은 차원의 가중치 합 ÷ 선언된 모든 차원의 가중치 합 × 100 (버림) | 계산, 지금 동작 |
+| 덩어리 수 | 이름·문장·장면의 연결망에서 서로 이어지지 않은 부분의 수 | 계산, 지금 동작 |
+| 본문 알림 수 | 자유로운 글에서 정해진 다섯 가지 꼴이 나온 횟수 (K601~K605) | 계산, 지금 동작 |
+| 일치 (차원별) | AI가 같은 글을 N번 읽고 빈칸을 채웠을 때 같은 값을 낸 비율. 범위로 보고 | 계획 |
+| 복원 유사도 | 사진을 AHAA로 적고, 그 글만으로 그림 AI가 그린 그림을 원래 사진과 비교한 값. 비교 방법은 아직 정하지 않음 | 계획 |
+| 실적 (낱말별) | 그 낱말을 쓴 글의 지난 검사에서 통과 ÷ 시도. 언제나 횟수와 함께 표시 | 계획 |
+
+이 언어가 기대는 주장은 둘이며, 둘 다 아직 시험하지 않았습니다.
+
+1. 쓰는 사람은 차원을 빠뜨리고도 모르며, 빈칸의 목록을 보여 주면 더 빠짐없이 적는다.
+2. 더 빠짐없이 적은 글일수록 그림 AI가 원래 장면에 더 가깝게 그린다.
+
+AI가 이 표기를 보통의 한국어나 영어보다 더 잘 이해한다고 주장하지 않습니다. 주장하는 것은 쓰는 사람 쪽입니다. 빠진 것을 보여 주는 구조입니다.
+
+### 어디까지 만들었나
+
+![여섯 단계 가운데 1단계가 끝났다](guide/img/08-steps.svg)
 
 ## 실행
 

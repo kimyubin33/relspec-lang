@@ -1,4 +1,4 @@
-//! 교재(`book/`)의 모든 예제를 실제 컴파일러로 검사합니다.
+//! 교재(`book/`, 영문판 `book-en/`)의 모든 예제를 실제 컴파일러로 검사합니다.
 //!
 //! 코드 블록의 정보 문자열(```뒤의 글)로 기대 결과를 적습니다.
 //!
@@ -22,12 +22,17 @@ struct Block {
 }
 
 fn blocks() -> Vec<Block> {
-    let mut paths: Vec<_> = fs::read_dir("book")
-        .expect("book 폴더")
-        .map(|entry| entry.unwrap().path())
-        .filter(|path| path.extension().is_some_and(|ext| ext == "md"))
-        .collect();
-    paths.sort();
+    // 한글 교재(`book/`)와 영문 교재(`book-en/`)를 모두 검사합니다.
+    let mut paths = Vec::new();
+    for folder in ["book", "book-en"] {
+        let mut found: Vec<_> = fs::read_dir(folder)
+            .unwrap_or_else(|_| panic!("{folder} 폴더"))
+            .map(|entry| entry.unwrap().path())
+            .filter(|path| path.extension().is_some_and(|ext| ext == "md"))
+            .collect();
+        found.sort();
+        paths.extend(found);
+    }
     let mut blocks = Vec::new();
     for path in paths {
         let text = fs::read_to_string(&path).unwrap();

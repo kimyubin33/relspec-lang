@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 356" width="880" height="356" role="img" aria-label="HTML and AHAA: elements, attributes and nesting are borrowed; relations, degree and time are added">
+<title>HTML and AHAA: elements, attributes and nesting are borrowed; relations, degree and time are added</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#667085"/></marker></defs>
+<rect x="0.5" y="0.5" width="879" height="355" rx="12" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="240" y="46" font-size="17" fill="#1f2430" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">HTML</text>
+<text x="640" y="46" font-size="17" fill="#1f2430" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AHAA</text>
+<rect x="60" y="64" width="360" height="34" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<text x="240" y="87" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">element (tag)</text>
+<rect x="460" y="64" width="380" height="34" rx="8" fill="#eefaff" stroke="#0e9bb5" stroke-width="1"/>
+<text x="650" y="87" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">word  ·  defined by the writer</text>
+<line x1="424" y1="81" x2="456" y2="81" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="60" y="106" width="360" height="34" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<text x="240" y="129" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">attribute</text>
+<rect x="460" y="106" width="380" height="34" rx="8" fill="#eefaff" stroke="#0e9bb5" stroke-width="1"/>
+<text x="650" y="129" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">dimension of a word</text>
+<line x1="424" y1="123" x2="456" y2="123" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="60" y="148" width="360" height="34" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<text x="240" y="171" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">nesting</text>
+<rect x="460" y="148" width="380" height="34" rx="8" fill="#eefaff" stroke="#0e9bb5" stroke-width="1"/>
+<text x="650" y="171" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">nesting (indentation)</text>
+<line x1="424" y1="165" x2="456" y2="165" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="60" y="190" width="360" height="34" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="240" y="213" font-size="14.5" fill="#98a2b3" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">—</text>
+<rect x="460" y="190" width="380" height="34" rx="8" fill="#eefbf3" stroke="#2e9e5b" stroke-width="1"/>
+<text x="650" y="213" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">relations and conditions  ·  if the cup falls, it breaks</text>
+<line x1="424" y1="207" x2="456" y2="207" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="60" y="232" width="360" height="34" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="240" y="255" font-size="14.5" fill="#98a2b3" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">—</text>
+<rect x="460" y="232" width="380" height="34" rx="8" fill="#eefbf3" stroke="#2e9e5b" stroke-width="1"/>
+<text x="650" y="255" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">degree  ·  80%</text>
+<line x1="424" y1="249" x2="456" y2="249" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="60" y="274" width="360" height="34" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="240" y="297" font-size="14.5" fill="#98a2b3" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">—</text>
+<rect x="460" y="274" width="380" height="34" rx="8" fill="#eefbf3" stroke="#2e9e5b" stroke-width="1"/>
+<text x="650" y="297" font-size="14.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">time · position · units</text>
+<line x1="424" y1="291" x2="456" y2="291" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<text x="60" y="338" font-size="13.5" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">Top three rows are borrowed from HTML. Bottom three are what HTML lacks and AHAA adds.</text>
+</svg>

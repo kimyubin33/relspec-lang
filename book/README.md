@@ -11,6 +11,7 @@
 - **기준 버전:** AHAA 0.14 (`languageVersion: "0.14"`)
 - **예제 검증:** 이 책의 모든 `aha` 예제는 `tests/book.rs`가 실제 컴파일러로 검사합니다. 컴파일되어야 하는 예제가 실패하거나, 오류가 나야 하는 예제가 다른 오류를 내면 `cargo test`가 실패합니다. 그래서 책의 예제는 언제나 현재 컴파일러와 일치합니다.
 - **그림으로 먼저 보려면** [그림 설명서](../guide/README.md)를 읽으세요.
+- **English edition:** a condensed [English textbook](../book-en/README.md) is available. 영문 교재는 이 책의 요약판입니다.
 
 ## 이 책의 뼈대: 적는다, 잇는다, 검사받는다
 
