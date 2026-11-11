@@ -7,6 +7,9 @@
 //! - ```` ```kpl 이어서 ```` : 바로 앞까지 쌓인 블록 뒤에 붙여 컴파일되어야 하며, 이후에도 쌓입니다.
 //! - ```` ```kpl 이어서 오류=K504 ```` : 앞까지 쌓인 블록 뒤에 붙이면 `K504`가 나와야 합니다(쌓이지 않음).
 //!
+//! - ```` ```kpl 경고=K601,K602 ```` : 컴파일되고, 본문 점검의 알림이 적힌 순서대로 정확히 이것들이어야 합니다.
+//!   `경고=`가 없는 블록의 알림은 확인하지 않습니다.
+//!
 //! 그 밖의 블록(```text, ```powershell 등)은 검사하지 않습니다.
 
 use std::fs;
@@ -86,10 +89,25 @@ fn every_book_example_behaves_as_written() {
         } else {
             block.body.clone()
         };
+        let warned = block
+            .info
+            .split_whitespace()
+            .find_map(|w| w.strip_prefix("경고="));
         let result = kpl::compile(&source);
         checked += 1;
         match (&expected, result) {
-            (None, Ok(_)) => {
+            (None, Ok(program)) => {
+                if let Some(wanted) = warned {
+                    let codes: Vec<_> = program.warnings.iter().map(|w| w.code).collect();
+                    if codes.join(",") != wanted {
+                        failures.push(format!(
+                            "{}:{}: 알림이 {wanted}이어야 하지만 [{}]입니다",
+                            block.file,
+                            block.line,
+                            codes.join(",")
+                        ));
+                    }
+                }
                 context = source;
                 context_file = block.file.clone();
             }

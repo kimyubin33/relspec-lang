@@ -4,6 +4,8 @@
 
 | 용어 | 뜻 | 장 |
 | --- | --- | --- |
+| 거짓 양성, 거짓 음성 | 점검 도구가 문제 아닌 것을 알리는 것, 문제를 알리지 못하는 것 | 17 |
+| 경고 | 컴파일을 막지 않는 알림. K6xx | 17 |
 | 가능 | 목표가 일부 해(또는 일부 방식의 세계)에서만 참인 판정 | 7, 13 |
 | 가능 세계 | 모든 미지값에 값을 하나씩 정한 하나의 경우. 13장에서는 방식을 정하지 않은 규칙마다 방식을 하나씩 고른 경우 | 7, 13 |
 | 강도 | 규칙이 성립하는 정도. 결론이 가질 수 있는 최대 정도 | 13 |
@@ -13,6 +15,10 @@
 | 규칙 | `전제 이면 강도`로 전제의 정도를 결론에 전하는 문장 | 13 |
 | 구문 나무 | 식이나 문장의 구조를 나무로 나타낸 것 | 4 |
 | 구문 분석 | 토큰 목록을 구문 나무로 바꾸는 과정 | 4 |
+| 린트 (lint) | 컴파일러가 통과시키는 글에서 의심스러운 곳을 찾는 점검 | 17 |
+| 문법 설탕 | 이미 있는 문법으로 바꿔 쓸 수 있는 편의 문법 (Landin) | 16 |
+| 미리 보기 (lookahead) | 다음 토큰을 보고 문법의 갈래를 정하는 것 | 16 |
+| 본문 | 낱말로 나누지 않는 자유로운 글: 설명, 참조의 본문, `본문:` 줄 | 17 |
 | 닫힌 세계 가정 | 적혀 있지 않은 것은 거짓으로 본다는 약속 (Reiter). RelSpec은 쓰지 않음 | 14 |
 | 기능동사 구문 | '설계를 하다'처럼 명사와 '하다'로 나뉜 동사 | 8 |
 | 기본 단위 | 값을 정수로 저장하는 단위. 시간은 밀리초, 거리는 밀리미터 | 3 |
@@ -41,6 +47,9 @@
 | 연결어미 | 두 절을 잇는 어미. 조건의 -면 | 14 |
 | 선어말어미 | 어간과 어말어미 사이의 어미. 시제를 나타내는 -었-, -겠- 등 | 11 |
 | 시제 | 발화시와 사건시의 관계를 나타내는 문법 범주 (Reichenbach) | 11 |
+| 언어 서버 프로토콜 (LSP) | 편집기와 언어 도구가 주고받는 메시지의 약속 | 15 |
+| 의미 토큰 | 언어 서버가 뜻을 근거로 알려 주는 색칠 정보 | 15 |
+| 이름에 의한 타입 구분 | 이름이 다르면 다른 타입으로 보는 방식. 선언한 단위가 그렇습니다 | 16 |
 | 아핀 공간 | 점과 벡터로 이루어진 구조. 점 − 점 = 벡터, 점 + 벡터 = 점 | 5 |
 | 어간 | 동사에서 활용할 때 바뀌지 않는 부분. 기본형에서 '다'를 뗀 것 | 8 |
 | 역할 | 사건에서 각 참여자나 시각이 맡는 자리. 주체, 대상, 시작 등 | 6 |
@@ -52,10 +61,12 @@
 | 정도의 전파 | 한 명제의 정도를 규칙을 따라 다른 명제로 전하는 것 | 13 |
 | 조건문 | `-면`으로 전제와 결론을 이은 문장. 문장으로 쓴 규칙 | 14 |
 | 존재 양화 | "어떤 ~가 있다". 퍼지 논리에서는 최댓값 | 14 |
+| 중의성 | 한 문장이 여러 뜻으로 읽히는 것. 낱말·구조·범위·지시의 층이 있음 | 17 |
+| 지역 타입 추론 | 한 문장 안에서 식으로부터 타입을 정하는 것 | 16 |
 | 조응 해결 | 지시어가 가리키는 대상을 찾는 일 | 9 |
 | 중간 표현 (IR) | 컴파일러가 만드는, 프로그램이 읽기 위한 표현. RelSpec은 JSON | 12 |
 | 진단 | 컴파일러의 오류 보고. `파일(줄,열): error 코드: 메시지` | 2 |
-| 차원 분석 | 서로 다른 차원의 양을 섞지 않는지 확인하는 방법 | 3 |
+| 차원 분석 | 서로 다른 차원의 양을 섞지 않는지 확인하는 방법 | 3, 16 |
 | 차이 제약 | x − y ≤ c 꼴의 제약 | 7 |
 | 참조 | `(참조 N)`과 `참조 N: 본문`으로 명시한 연결 | 9 |
 | 최소 방식 (Mamdani) | 결론 = min(전제, 강도). `최소로` | 13 |
@@ -127,6 +138,25 @@
 - Reiter, R. (1978). On Closed World Data Bases. In H. Gallaire & J. Minker (Eds.), *Logic and Data Bases* (pp. 55–76). Plenum Press.
 - Clark, K. L. (1978). Negation as Failure. In H. Gallaire & J. Minker (Eds.), *Logic and Data Bases* (pp. 293–322). Plenum Press.
 - Hájek, P. (1998). *Metamathematics of Fuzzy Logic*. Kluwer Academic Publishers.
+
+**15장 편집기에서 쓰기**
+
+- Microsoft. *Language Server Protocol Specification*. (공개 명세)
+- JSON-RPC Working Group. (2010). *JSON-RPC 2.0 Specification*.
+
+**16장 짧게 쓰기**
+
+- Landin, P. J. (1964). The Mechanical Evaluation of Expressions. *The Computer Journal*, 6(4), 308–320.
+- Pierce, B. C., & Turner, D. N. (2000). Local Type Inference. *ACM Transactions on Programming Languages and Systems*, 22(1), 1–44.
+- Kennedy, A. J. (1996). *Programming Languages and Dimensions* (박사 학위 논문). University of Cambridge.
+
+**17장 본문 점검**
+
+- Johnson, S. C. (1978). *Lint, a C Program Checker*. Bell Laboratories.
+- Hunt, A., & Thomas, D. (1999). *The Pragmatic Programmer*. Addison-Wesley. ("반복하지 마라" 원칙)
+- ISO/IEC/IEEE 29148. *Systems and software engineering — Life cycle processes — Requirements engineering*. (요구사항 문장에서 피할 표현)
+- Mavin, A., Wilkinson, P., Harwood, A., & Novak, M. (2009). Easy Approach to Requirements Syntax (EARS). *17th IEEE International Requirements Engineering Conference*.
+- Hopcroft, J. E., Motwani, R., & Ullman, J. D. *Introduction to Automata Theory, Languages, and Computation*. Addison-Wesley. (문맥 자유 문법의 중의성 판정 불가능성)
 
 **2장, 부록 C**
 
