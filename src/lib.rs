@@ -15,7 +15,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.10";
+pub const LANGUAGE_VERSION: &str = "0.11";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -209,6 +209,18 @@ pub struct IrVerb {
 pub struct IrText {
     pub line: usize,
     pub text: String,
+    /// 아래에 `- 글`로 적은 줄들.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<String>,
+}
+
+/// `- 글` 줄이 딸리는 곳.
+#[derive(Clone, Copy)]
+enum Host {
+    Sentence(usize),
+    Conditional(usize),
+    Reference(usize),
+    Text(usize),
 }
 
 /// 본문(설명, 참조, `본문:` 줄)에서 선언한 이름이 나온 자리.
@@ -236,6 +248,9 @@ pub struct IrWarning {
 pub struct IrReference {
     pub number: u32,
     pub text: String,
+    /// 아래에 `- 글`로 적은 줄들.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -292,6 +307,9 @@ pub struct IrConditional {
     /// 문장 뒤에 `: 설명`으로 적은 글.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// 아래에 `- 글`로 적은 줄들.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -314,6 +332,9 @@ pub struct IrSentence {
     /// 문장 뒤에 `: 설명`으로 적은 글.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
+    /// 아래에 `- 글`로 적은 줄들.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub items: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -403,7 +424,13 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         text: token.text.clone(),
     };
 
+    // `- 글` 줄이 딸릴 곳: 가장 가까운 위의 문장·조건문·참조·본문.
+    let mut host: Option<Host> = None;
+
     for statement in statements {
+        if !matches!(statement, Statement::Item { .. }) {
+            host = None;
+        }
         let name = match &statement {
             // 이름을 적지 않은 검사·조건·목표는 이름 공간을 쓰지 않습니다.
             Statement::Value {
@@ -426,6 +453,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             Statement::Observe { .. }
             | Statement::Verb { .. }
             | Statement::Body { .. }
+            | Statement::Item { .. }
             | Statement::ReferenceDefinition { .. } => None,
         };
         if let Some(name) = name
@@ -711,17 +739,37 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     return Err(number.error("K512", format!("참조 {n}이 이미 정의되어 있습니다.")));
                 }
                 passages.push(passage(&text));
+                host = Some(Host::Reference(program.references.len()));
                 program.references.push(IrReference {
                     number: n,
                     text: text.text,
+                    items: Vec::new(),
                 });
             }
             Statement::Body { text } => {
                 passages.push(passage(&text));
+                host = Some(Host::Text(program.texts.len()));
                 program.texts.push(IrText {
                     line: text.line(),
                     text: text.text,
+                    items: Vec::new(),
                 });
+            }
+            Statement::Item { text } => {
+                let items = match host {
+                    Some(Host::Sentence(index)) => &mut program.sentences[index].items,
+                    Some(Host::Conditional(index)) => &mut program.conditionals[index].items,
+                    Some(Host::Reference(index)) => &mut program.references[index].items,
+                    Some(Host::Text(index)) => &mut program.texts[index].items,
+                    None => {
+                        return Err(text.error(
+                            "K200",
+                            "'-'로 시작하는 줄은 바로 위의 문장, 참조, 본문에 딸린 글입니다. 위에 그런 줄이 없습니다.",
+                        ));
+                    }
+                };
+                passages.push(passage(&text));
+                items.push(text.text);
             }
             Statement::Sentence {
                 label,
@@ -756,6 +804,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                                 .insert(label.text.clone(), EventRecord { roles: bound.roles });
                             scope.values.insert(label.text, degree);
                         }
+                        host = Some(Host::Sentence(program.sentences.len()));
                         program.sentences.push(bound.ir);
                     }
                     sentence::BoundLine::Conditional(bound) => {
@@ -829,7 +878,9 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                             outcomes: scope.outcomes(&value),
                             references: cited.iter().map(|(n, _)| *n).collect(),
                             note,
+                            items: Vec::new(),
                         });
+                        host = Some(Host::Conditional(program.conditionals.len() - 1));
                         citations.extend(cited);
                         if let Some(label) = label {
                             scope.events.insert(

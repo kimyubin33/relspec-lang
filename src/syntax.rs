@@ -424,7 +424,9 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                 count >= 3 && kind == Kind::Colon && line_tokens[0].kind == Kind::Identifier;
             // `본문: 글`
             let body_text = count == 2 && kind == Kind::Colon && line_tokens[0].kind == Kind::Body;
-            if reference_body || sentence_note || body_text {
+            // `- 글`: 위의 문장·참조·본문에 딸린 줄
+            let item_text = count == 1 && kind == Kind::Minus;
+            if reference_body || sentence_note || body_text || item_text {
                 let rest = characters
                     .peek()
                     .map_or(text.len(), |&(position, _)| position);
@@ -541,6 +543,10 @@ pub(crate) enum Statement {
     },
     /// `본문: 글`. 낱말로 나누지 않는 자유로운 글 한 줄.
     Body {
+        text: Token,
+    },
+    /// `- 글`. 바로 위의 문장·참조·본문에 딸린 글 한 줄.
+    Item {
         text: Token,
     },
     /// `참조 1: 본문`

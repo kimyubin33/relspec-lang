@@ -9,6 +9,7 @@
 //! - 기준이 정해지지 않은 낱말을 알립니다(`K602`).
 //! - 가리키는 대상을 확인할 수 없는 지시어를 알립니다(`K603`).
 //! - 선언한 이름을 띄어 쓴 곳을 알립니다(`K604`).
+//! - 한 줄에 너무 길게 적은 글을 알립니다(`K605`).
 //!
 //! 모두 경고이며 컴파일을 막지 않습니다. 경고가 없다는 것이 글이 모호하지 않다는 뜻은 아닙니다.
 
@@ -108,6 +109,9 @@ const VAGUE: &[&str] = &[
     "추후",
 ];
 
+/// 글 한 줄이 이보다 길면(UTF-16 단위) 나누어 적으라고 알립니다.
+const LONG: usize = 80;
+
 /// 앞의 무엇인가를 가리키는 낱말. 글 안에서는 무엇을 가리키는지 확인할 수 없습니다.
 const POINTERS: &[&str] = &["이것", "그것", "저것", "이것들", "그것들", "해당", "상기"];
 
@@ -203,6 +207,19 @@ pub(crate) fn analyze(
 
     for passage in passages {
         let spans = split(&passage.text);
+        let length = units(&passage.text);
+        if length > LONG {
+            let first = spans.first().map_or(1, |span| units(span.text));
+            warnings.push(IrWarning {
+                code: "K605",
+                line: passage.line,
+                column: passage.column,
+                length: first,
+                message: format!(
+                    "글 한 줄이 {length}자입니다. {LONG}자를 넘으면 읽는 사람이 놓치기 쉬우므로, 지시 하나를 한 줄로 하여 아래에 '- '로 시작하는 줄로 나누어 적으세요."
+                ),
+            });
+        }
         let mut warn = |code: &'static str, start: usize, length: usize, message: String| {
             warnings.push(IrWarning {
                 code,

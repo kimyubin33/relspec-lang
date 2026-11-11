@@ -3,7 +3,7 @@ use std::{env, fs, io, path::Path, process::ExitCode};
 mod lsp;
 mod report;
 
-const USAGE: &str = "KPL 0.10\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl> | kpl lsp";
+const USAGE: &str = "KPL 0.11\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl> | kpl lsp";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();

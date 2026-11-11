@@ -34,7 +34,8 @@ const source = `# 주석입니다
 단위 원
 조사자가 조사범위를 80% 확인한다 (참조 1): 몇 곳인가? 120만 원 # 주석 아님
 첫째: 컵이 떨어졌다: 바닥 기준 == 0
-둘째: 컵이 떨어졌다 # 주석: 설명 아님`;
+둘째: 컵이 떨어졌다 # 주석: 설명 아님
+- 추정치를 만들지 말라 (근거 == 없음)`;
 
 // [줄 번호(0부터), 낱말, 들어 있어야 하는 범위 이름] 또는 [줄, 낱말, null] = 특별한 범위가 없어야 함
 const expectations = [
@@ -97,6 +98,8 @@ const expectations = [
   [18, " 바닥 기준 == 0", "string.unquoted.note"],
   [19, "둘째", "entity.name.function"],
   [19, "# 주석: 설명 아님", "comment.line"],
+  [20, "-", "punctuation.definition.list"],
+  [20, " 추정치를 만들지 말라 (근거 == 없음)", "string.unquoted.item"],
 ];
 
 registry.loadGrammar("source.kpl").then((grammar) => {

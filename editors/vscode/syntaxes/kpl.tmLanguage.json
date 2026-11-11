@@ -4,6 +4,9 @@
   "scopeName": "source.kpl",
   "patterns": [
     {
+      "include": "#item"
+    },
+    {
       "include": "#reference-definition"
     },
     {
@@ -245,6 +248,18 @@
         },
         "3": {
           "name": "string.unquoted.note.kpl"
+        }
+      }
+    },
+    "item": {
+      "comment": "- 글. 위의 문장·참조·본문에 딸린 줄입니다.",
+      "match": "^\\s*(-)(.*)$",
+      "captures": {
+        "1": {
+          "name": "punctuation.definition.list.kpl"
+        },
+        "2": {
+          "name": "string.unquoted.item.kpl"
         }
       }
     }

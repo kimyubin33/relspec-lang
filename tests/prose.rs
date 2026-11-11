@@ -142,3 +142,60 @@ fn shipped_example_reports_the_documented_warnings() {
     );
     assert_eq!(program.mentions.len(), 5);
 }
+
+#[test]
+fn lines_starting_with_a_dash_belong_to_the_line_above() {
+    let program = ok(&format!(
+        "{BASE}신청자가 강의실을 예약한다\n\
+         - 정원을 넘지 않는지 확인한다\n\
+         - 기본요금을 낸다 # 주석 아님\n\
+         \n\
+         # 주석과 빈 줄을 사이에 두어도 이어집니다\n\
+         - 3만 원 영수증을 받는다\n\
+         참조 1: 예약 규정\n\
+         - 신청자만 예약한다\n\
+         본문: 조사 원칙\n\
+         -적절히 하지 않는다\n\
+         행위 떨어지다, 깨지다: 주체\n\
+         강의실이 떨어졌다\n\
+         강의실이 떨어지면 강의실이 깨진다: 설명\n\
+         - 조건문에도 딸린다\n"
+    ));
+    assert_eq!(
+        program.sentences[0].items,
+        [
+            "정원을 넘지 않는지 확인한다",
+            "기본요금을 낸다 # 주석 아님",
+            "3만 원 영수증을 받는다"
+        ]
+    );
+    assert_eq!(program.references[0].items, ["신청자만 예약한다"]);
+    assert_eq!(program.texts[0].items, ["적절히 하지 않는다"]);
+    assert_eq!(program.conditionals[0].items, ["조건문에도 딸린다"]);
+    assert_eq!(program.conditionals[0].note.as_deref(), Some("설명"));
+    // 딸린 줄도 본문이므로 이름을 찾고 점검합니다.
+    assert_eq!(
+        mentions(&program)[..3],
+        [(8, 3, "정원"), (9, 3, "기본요금"), (14, 3, "신청자")]
+    );
+    assert_eq!(warnings(&program), [("K601", 12, 3, 4), ("K602", 16, 2, 3)]);
+
+    // 딸릴 곳이 없으면 오류입니다.
+    let code = |source: &str| compile(source).err().unwrap().code;
+    assert_eq!(code("- 처음부터 딸린 줄\n"), "K200");
+    assert_eq!(code("정의 가 = 1\n- 정의에는 딸리지 않는다\n"), "K200");
+    assert_eq!(
+        code(&format!("{BASE}신청자가 강의실을 예약한다\n-\n")),
+        "K200"
+    );
+    // 식의 음수는 그대로입니다.
+    ok("정의 가 = -3\n검사 가 == 0 - 3\n");
+}
+
+#[test]
+fn a_long_line_of_text_is_reported() {
+    let long = "가나다라 ".repeat(17);
+    let program = ok(&format!("본문: {long}\n본문: {}\n", "가".repeat(80)));
+    assert_eq!(warnings(&program), [("K605", 1, 5, 4)]);
+    assert!(program.warnings[0].message.contains("84자"));
+}

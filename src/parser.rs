@@ -70,6 +70,16 @@ impl Parser<'_> {
                     last
                 }
                 Kind::Rule => self.rule_statement()?,
+                Kind::Minus => {
+                    let dash = self.take();
+                    if self.current().kind != Kind::Text || self.current().text.is_empty() {
+                        return Err(dash.error(
+                            "K200",
+                            "'-' 뒤에 글을 적으세요. '-'로 시작하는 줄은 위의 문장에 딸린 글입니다.",
+                        ));
+                    }
+                    Statement::Item { text: self.take() }
+                }
                 Kind::Body => {
                     self.take();
                     self.expect(

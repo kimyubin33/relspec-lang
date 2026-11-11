@@ -43,7 +43,7 @@ VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec �
 
 ```powershell
 npx.cmd --yes @vscode/vsce package --skip-license
-code --install-extension relspec-kpl-0.10.2.vsix
+code --install-extension relspec-kpl-0.11.0.vsix
 ```
 
 파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.kpl` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `RelSpec`으로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.

@@ -545,6 +545,7 @@ pub(crate) fn bind_line(
                 roles: clause.ir_roles,
                 references: citations.iter().map(|(n, _)| *n).collect(),
                 note: None,
+                items: Vec::new(),
             },
             degree,
             roles: clause.values,
