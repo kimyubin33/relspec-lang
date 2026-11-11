@@ -10,6 +10,9 @@
       "include": "#body-text"
     },
     {
+      "include": "#sentence-note"
+    },
+    {
       "include": "#comment"
     },
     {
@@ -217,6 +220,31 @@
         },
         "2": {
           "name": "entity.name.function.kpl"
+        }
+      }
+    },
+    "sentence-note": {
+      "comment": "문장 뒤의 ': 설명'. 설명은 글이므로 안의 수와 기호를 식처럼 색칠하지 않습니다. 줄 처음 낱말 바로 뒤의 ':'는 문장의 이름입니다.",
+      "match": "^(\\s*(?!(?:정의|검사|기준|대상|단위|사건|미지|조건|목표|관측|행위|규칙|참조|본문)(?![\\p{L}\\p{N}\\p{M}_]))(?:[\\p{L}_][\\p{L}\\p{N}\\p{M}_]*\\s*:\\s*)?[^\\s:#]+\\s[^:#]*)(:)(.*)$",
+      "captures": {
+        "1": {
+          "patterns": [
+            {
+              "include": "#label"
+            },
+            {
+              "include": "#citation"
+            },
+            {
+              "include": "#expression"
+            }
+          ]
+        },
+        "2": {
+          "name": "punctuation.separator.kpl"
+        },
+        "3": {
+          "name": "string.unquoted.note.kpl"
         }
       }
     }

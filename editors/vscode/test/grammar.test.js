@@ -31,7 +31,10 @@ const source = `# 주석입니다
 미지 가, 나: 시간
 조건 요금 >= 0 초
 목표 넘침 = 요금 == 0 초
-단위 원`;
+단위 원
+조사자가 조사범위를 80% 확인한다 (참조 1): 몇 곳인가? 120만 원 # 주석 아님
+첫째: 컵이 떨어졌다: 바닥 기준 == 0
+둘째: 컵이 떨어졌다 # 주석: 설명 아님`;
 
 // [줄 번호(0부터), 낱말, 들어 있어야 하는 범위 이름] 또는 [줄, 낱말, null] = 특별한 범위가 없어야 함
 const expectations = [
@@ -86,6 +89,14 @@ const expectations = [
   [14, "요금", null],
   [15, "넘침", "entity.name.function"],
   [16, "원", "entity.name.function"],
+  // 문장 뒤의 설명은 글입니다. 안의 '?', 수, '#'을 따로 색칠하지 않습니다.
+  [17, "80", "constant.numeric"],
+  [17, "참조", "keyword.other.reference"],
+  [17, " 몇 곳인가? 120만 원 # 주석 아님", "string.unquoted.note"],
+  [18, "첫째", "entity.name.function"],
+  [18, " 바닥 기준 == 0", "string.unquoted.note"],
+  [19, "둘째", "entity.name.function"],
+  [19, "# 주석: 설명 아님", "comment.line"],
 ];
 
 registry.loadGrammar("source.kpl").then((grammar) => {

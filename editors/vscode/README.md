@@ -43,7 +43,7 @@ VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec �
 
 ```powershell
 npx.cmd --yes @vscode/vsce package --skip-license
-code --install-extension relspec-kpl-0.10.1.vsix
+code --install-extension relspec-kpl-0.10.2.vsix
 ```
 
 파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.kpl` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `RelSpec`으로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.
@@ -77,7 +77,7 @@ npm test
 
 ## 확인한 범위
 
-위의 두 시험과 `tests/lsp.rs`로 색칠 규칙과 언어 서버의 동작을 확인했습니다. Windows의 VS Code에서 .vsix로 설치해 언어 인식과 문법 색칠이 되는 것을 확인했습니다. 문제가 있으면 "출력" 창의 "RelSpec (KPL)" 항목을 확인해 주세요.
+위의 두 시험과 `tests/lsp.rs`로 색칠 규칙과 언어 서버의 동작을 확인했습니다. Windows의 VS Code에서 .vsix로 설치해 언어 인식, 문법 색칠, 경고와 판정 표시가 되는 것을 확인했습니다. 문제가 있으면 "출력" 창의 "RelSpec (KPL)" 항목을 확인해 주세요.
 
 ## 알려진 한계
 
