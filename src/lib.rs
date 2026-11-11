@@ -14,7 +14,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.8";
+pub const LANGUAGE_VERSION: &str = "0.9";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -260,6 +260,9 @@ pub struct IrConditional {
     pub outcomes: Option<Vec<IrOutcome>>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<u32>,
+    /// 문장 뒤에 `: 설명`으로 적은 글.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -279,6 +282,9 @@ pub struct IrSentence {
     pub roles: Vec<IrSentenceRole>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub references: Vec<u32>,
+    /// 문장 뒤에 `: 설명`으로 적은 글.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub note: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -286,6 +292,9 @@ pub struct IrSentence {
 pub struct CompiledProgram {
     pub language_version: &'static str,
     pub statements: Vec<IrStatement>,
+    /// `단위`로 선언한 단위 이름.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub units: Vec<String>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub frames: Vec<IrFrame>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
@@ -329,6 +338,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
     let mut program = CompiledProgram {
         language_version: LANGUAGE_VERSION,
         statements: Vec::new(),
+        units: Vec::new(),
         frames: Vec::new(),
         entities: Vec::new(),
         events: Vec::new(),
@@ -347,9 +357,17 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
 
     for statement in statements {
         let name = match &statement {
+            // 이름을 적지 않은 검사·조건·목표는 이름 공간을 쓰지 않습니다.
+            Statement::Value {
+                anonymous: true, ..
+            }
+            | Statement::Constraint {
+                anonymous: true, ..
+            } => None,
             Statement::Value { name, .. }
             | Statement::Frame { name, .. }
             | Statement::Entity { name }
+            | Statement::Unit { name }
             | Statement::Event { name, .. }
             | Statement::Unknown { name, .. }
             | Statement::Constraint { name, .. }
@@ -373,8 +391,9 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         match statement {
             Statement::Value {
                 name,
-                declared_type: None,
+                check: true,
                 expression,
+                ..
             } if mentions_unknown(&expression, &scope) => {
                 // 미지값이 들어간 검사는 모든 해에서 보장되어야 하며, 판정은 모든 조건을 읽은 뒤에 합니다.
                 let judged = constrain(expression, &scope)?;
@@ -386,10 +405,16 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     judged,
                 });
             }
+            Statement::Unit { name } => {
+                scope.units.insert(name.text.clone());
+                program.units.push(name.text);
+            }
             Statement::Value {
                 name,
+                check,
                 declared_type,
                 expression,
+                ..
             } => {
                 let Bound { value, ir } = bind(expression, &scope)?;
                 if value.is_symbolic() {
@@ -401,10 +426,15 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                         ),
                     ));
                 }
-                let expected = declared_type.unwrap_or(Type::Boolean);
-                check_declared_type(&name, expected, &value, &scope)?;
+                // 타입을 적지 않은 정의는 값의 타입을 그대로 따릅니다.
+                if check {
+                    check_declared_type(&name, Type::Boolean, &value, &scope)?;
+                } else if let Some((expected, token)) = declared_type {
+                    known_type(expected, &token, &scope)?;
+                    check_declared_type(&name, expected, &value, &scope)?;
+                }
 
-                let is_definition = declared_type.is_some();
+                let is_definition = !check;
                 if !is_definition && value.worlds.is_some() {
                     return Err(split_check(&name, &value, &scope));
                 }
@@ -459,7 +489,13 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 scope.events.insert(name.text, record);
                 program.events.push(ir);
             }
-            Statement::Unknown { name, kind, frame } => {
+            Statement::Unknown {
+                name,
+                kind,
+                kind_token,
+                frame,
+            } => {
+                known_type(kind, &kind_token, &scope)?;
                 let frame = match frame {
                     None => None,
                     Some(token) => {
@@ -503,6 +539,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 name,
                 goal,
                 expression,
+                ..
             } => {
                 let judged = constrain(expression, &scope)?;
                 check_declared_type(&name, Type::Boolean, &judged.value, &scope)?;
@@ -629,11 +666,17 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     text: text.text,
                 });
             }
-            Statement::Sentence { label, tokens } => {
+            Statement::Sentence {
+                label,
+                tokens,
+                note,
+            } => {
                 let line = tokens[0].line();
+                let note = note.map(|token| token.text);
                 match sentence::bind_line(label.as_ref(), &tokens, &scope, &verbs)? {
                     sentence::BoundLine::Plain(bound) => {
-                        let bound = *bound;
+                        let mut bound = *bound;
+                        bound.ir.note = note;
                         for ordering in &bound.orderings {
                             require_order(&mut scope, ordering)?;
                         }
@@ -725,6 +768,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                             value: value.display_all(),
                             outcomes: scope.outcomes(&value),
                             references: cited.iter().map(|(n, _)| *n).collect(),
+                            note,
                         });
                         citations.extend(cited);
                         if let Some(label) = label {
@@ -1070,7 +1114,7 @@ fn mentions_unknown(expression: &Expression, scope: &Scope) -> bool {
         Expression::Binary(_, left, right) => {
             mentions_unknown(left, scope) || mentions_unknown(right, scope)
         }
-        Expression::Literal(..) | Expression::Member(..) => false,
+        Expression::Literal(..) | Expression::Quantity { .. } | Expression::Member(..) => false,
     }
 }
 
@@ -1314,6 +1358,8 @@ struct Scope {
     facts: Vec<Fact>,
     /// 앞선 조건문들의 전제와 그 줄 번호.
     conditions: Vec<(sentence::Pattern, usize)>,
+    /// `단위`로 선언한 단위 이름.
+    units: HashSet<String>,
 }
 
 impl Default for Closure {
@@ -1723,6 +1769,33 @@ struct Bound {
 }
 
 /// 지속 시간과 시각, 길이와 위치처럼 차원은 같지만 역할이 다른 조합인지 확인합니다.
+/// 타입 자리에 적은 이름이 선언한 단위인지 확인합니다.
+fn known_type(kind: Type, token: &Token, scope: &Scope) -> Result<(), Diagnostic> {
+    match kind {
+        Type::Custom(name) if !scope.units.contains(name) => Err(token.error(
+            "K315",
+            format!(
+                "'{name}'은 타입도 단위도 아닙니다. 단위로 쓰려면 앞에서 '단위 {name}'으로 선언하세요.",
+            ),
+        )),
+        _ => Ok(()),
+    }
+}
+
+/// 수 뒤에 적은 낱말을 단위로 읽습니다. 선언한 단위가 먼저이고, 그다음이 `분`·`시간`·`일`·`킬로미터`입니다.
+fn unit_of(word: &str, scope: &Scope) -> Option<(Type, u32)> {
+    if scope.units.contains(word) {
+        return Some((Type::Custom(syntax::intern(word)), 1));
+    }
+    match word {
+        "분" => Some((Type::Time, 60_000)),
+        "시간" => Some((Type::Time, 3_600_000)),
+        "일" => Some((Type::Time, 86_400_000)),
+        "킬로미터" => Some((Type::Distance, 1_000_000)),
+        _ => None,
+    }
+}
+
 fn point_vector_pair(a: Type, b: Type) -> bool {
     a.displacement() == Some(b) || b.displacement() == Some(a)
 }
@@ -2091,6 +2164,35 @@ fn bind(expression: Expression, scope: &Scope) -> Result<Bound, Diagnostic> {
             };
             (value, ir)
         }
+        Expression::Quantity {
+            settled,
+            last,
+            word,
+        } => {
+            // `3만 원`은 낱말 전체가 단위이고, `3만원`은 큰 수 낱말과 단위가 붙어 있습니다.
+            let whole = unit_of(&word.text, scope).map(|unit| (settled.add(&last), unit));
+            let split = || {
+                let (factor, rest) = syntax::split_multiplier(&word.text)?;
+                let amount = settled.add(&last.mul(&Integer::from_decimal(factor)));
+                Some((amount, unit_of(rest, scope)?))
+            };
+            let Some((amount, (kind, factor))) = whole.or_else(split) else {
+                return Err(word.error(
+                    "K315",
+                    format!(
+                        "'{0}'은 단위가 아닙니다. 단위로 쓰려면 앞에서 '단위 {0}'으로 선언하세요. 이미 있는 단위는 밀리초, 초, 분, 시간, 일, 밀리미터, 센티미터, 미터, 킬로미터입니다.",
+                        word.text
+                    ),
+                ));
+            };
+            let value = Value::plain(kind, amount.mul(&Integer::from_small(factor)));
+            let ir = IrExpression::Literal {
+                kind: kind.name(),
+                value: value.display(),
+                unit: kind.base_unit(),
+            };
+            (value, ir)
+        }
         Expression::Reference(name) => {
             let Some(value) = scope.values.get(&name.text).cloned() else {
                 return Err(unbound(&name, scope));
@@ -2209,9 +2311,7 @@ fn evaluate_unary(op: &Token, value: Value, scope: &Scope) -> Result<Value, Diag
         return Ok(collapse(results));
     }
     match op.kind {
-        Kind::Minus if matches!(value.kind, Type::Integer | Type::Time | Type::Distance) => {
-            Ok(value.negated())
-        }
+        Kind::Minus if value.kind.is_amount() => Ok(value.negated()),
         Kind::Not if value.kind == Type::Boolean => Ok(Value::logical(value.number.is_zero())),
         // 퍼지 부정: 100% - 정도
         Kind::Not if value.kind == Type::Degree => {
@@ -2318,7 +2418,7 @@ fn evaluate_fixed(
 
     let (l, r) = (left.kind, right.kind);
     let (a, b) = (&left.number, &right.number);
-    let vector = l == r && matches!(l, Integer | Time | Distance);
+    let vector = l == r && l.is_amount();
     let point = l == r && matches!(l, Instant | Position);
     let mismatch = || {
         let (code, hint) = if point_vector_pair(l, r) {
@@ -2370,8 +2470,8 @@ fn evaluate_fixed(
             _ => return Err(mismatch()),
         },
         Kind::Star => match (l, r) {
-            (Integer, Integer | Time | Distance) => Value::plain(r, a.mul(b)),
-            (Time | Distance, Integer) => Value::plain(l, a.mul(b)),
+            (Integer, _) if r.is_amount() => Value::plain(r, a.mul(b)),
+            (_, Integer) if l.is_amount() => Value::plain(l, a.mul(b)),
             _ => return Err(mismatch()),
         },
         Kind::Less | Kind::LessEqual | Kind::Greater | Kind::GreaterEqual => {

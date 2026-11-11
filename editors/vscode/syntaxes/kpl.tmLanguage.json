@@ -27,7 +27,7 @@
     },
     "declaration": {
       "comment": "줄을 시작하는 낱말과 선언하는 이름",
-      "match": "^\\s*(정의|검사|기준|대상|사건|미지|조건|목표|관측|행위|규칙)(?:\\s+([\\p{L}_][\\p{L}\\p{N}\\p{M}_]*))?(?![\\p{L}\\p{N}_])",
+      "match": "^\\s*(정의|검사|기준|대상|단위|사건|미지|조건|목표|관측|행위|규칙)(?:\\s+([\\p{L}_][\\p{L}\\p{N}\\p{M}_]*))?(?![\\p{L}\\p{N}_])",
       "captures": {
         "1": { "name": "keyword.control.declaration.kpl" },
         "2": { "name": "entity.name.function.kpl" }

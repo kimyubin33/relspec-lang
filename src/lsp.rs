@@ -18,16 +18,17 @@ const SEVERITY_INFORMATION: u8 = 3;
 
 /// 문장을 시작하는 낱말과 그 설명.
 const STATEMENTS: &[(&str, &str)] = &[
-    ("정의", "정의 이름: 타입 = 식"),
-    ("검사", "검사 이름 = 논리식"),
+    ("정의", "정의 이름 = 식 | 정의 이름: 타입 = 식"),
+    ("검사", "검사 논리식 | 검사 이름 = 논리식"),
     ("기준", "기준 이름: 시간축 | 위치축"),
-    ("대상", "대상 이름"),
+    ("대상", "대상 이름, 이름, ..."),
+    ("단위", "단위 이름, 이름, ...  (예: 단위 원, 명)"),
     ("사건", "사건 이름: 역할 = 값, ..."),
-    ("미지", "미지 이름: 타입 = ? | 기준 @ ?"),
-    ("조건", "조건 이름 = 논리식"),
-    ("목표", "목표 이름 = 논리식"),
+    ("미지", "미지 이름, ...: 타입 | 미지 이름: 시각 = 기준 @ ?"),
+    ("조건", "조건 논리식 | 조건 이름 = 논리식"),
+    ("목표", "목표 논리식 | 목표 이름 = 논리식"),
     ("관측", "관측 미지이름 = 값"),
-    ("행위", "행위 기본형: 필수역할, ..."),
+    ("행위", "행위 기본형, ...: 필수역할, ..."),
     ("규칙", "규칙 이름: 전제 이면 강도 [최소로|곱으로]"),
     ("참조", "참조 번호: 본문"),
 ];
@@ -461,9 +462,57 @@ fn split_words(line: &str) -> Vec<(usize, &str)> {
     words
 }
 
+/// 선언 줄이 만드는 이름들과 그 시작 위치(UTF-16).
+/// `대상 가, 나`처럼 여러 이름을 선언하는 줄이 있고,
+/// `조건 가 >= 0`처럼 이름 없이 식만 적은 줄은 이름을 만들지 않습니다.
+fn declared_names(line: &str, keyword: &str) -> Vec<(usize, String)> {
+    let is_word = |c: char| c.is_alphanumeric() || c == '_';
+    let Some(at) = line.find(keyword) else {
+        return Vec::new();
+    };
+    let offset = at + keyword.len();
+    let body = line[offset..].split('#').next().unwrap_or_default();
+    let list = matches!(keyword, "대상" | "단위" | "미지" | "행위");
+    let optional = matches!(keyword, "검사" | "조건" | "목표");
+
+    let mut names = Vec::new();
+    let mut depth = 0usize;
+    let mut current: Option<usize> = None;
+    for (index, ch) in body.char_indices().chain([(body.len(), ' ')]) {
+        if depth == 0 && is_word(ch) {
+            current.get_or_insert(index);
+            continue;
+        }
+        if let Some(start) = current.take() {
+            names.push((start, index));
+            if !list {
+                break;
+            }
+        }
+        match ch {
+            '(' => depth += 1,
+            ')' => depth = depth.saturating_sub(1),
+            ':' | '=' if depth == 0 => break,
+            _ => {}
+        }
+    }
+    if optional {
+        // 이름은 바로 뒤에 '='(비교 '=='가 아닌)가 올 때만 이름입니다.
+        names.retain(|&(_, end)| {
+            let rest = body[end..].trim_start();
+            rest.starts_with('=') && !rest.starts_with("==")
+        });
+    }
+    names
+        .into_iter()
+        .filter(|&(start, _)| !body[start..].starts_with(|c: char| c.is_ascii_digit()))
+        .map(|(start, end)| (units(&line[..offset + start]), body[start..end].to_string()))
+        .collect()
+}
+
 fn outline(text: &str) -> Vec<Symbol> {
     const DECLARING: &[&str] = &[
-        "정의", "검사", "기준", "대상", "사건", "미지", "조건", "목표", "행위", "규칙",
+        "정의", "검사", "기준", "대상", "단위", "사건", "미지", "조건", "목표", "행위", "규칙",
     ];
     let is_name =
         |text: &str| !text.is_empty() && text.chars().all(|c| c.is_alphanumeric() || c == '_');
@@ -477,17 +526,13 @@ fn outline(text: &str) -> Vec<Symbol> {
             continue;
         }
         if let Some(&keyword) = DECLARING.iter().find(|k| **k == first) {
-            let Some(&(start, word)) = words.get(1) else {
-                continue;
-            };
-            let name = word.split([':', '=', '(', '#']).next().unwrap_or_default();
-            if is_name(name) {
+            for (start, name) in declared_names(line, keyword) {
                 symbols.push(Symbol {
-                    name: name.to_string(),
+                    end: start + units(&name),
+                    name,
                     keyword,
                     row,
                     start,
-                    end: start + units(name),
                 });
             }
         } else if first == "참조" {
@@ -639,6 +684,12 @@ fn describe(program: &kpl::CompiledProgram, findings: Vec<report::Finding>) -> I
     for entity in &program.entities {
         info.names
             .insert(entity.name.clone(), format!("**대상** `{}`", entity.name));
+    }
+    for unit in &program.units {
+        info.names.insert(
+            unit.clone(),
+            format!("**단위** `{unit}`: 이 단위로 센 양끼리만 더하고 비교할 수 있습니다."),
+        );
     }
     for statement in &program.statements {
         let text = if statement.kind == "정의" {

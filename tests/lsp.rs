@@ -442,3 +442,50 @@ fn unknown_requests_get_errors_and_unknown_notifications_are_ignored() {
     assert!(client.at("textDocument/definition", 0, 0).is_null());
     assert_eq!(client.stop(), 0);
 }
+
+#[test]
+fn understands_the_shorter_forms() {
+    let mut client = Client::start();
+    let diagnostics = client.open(
+        "대상 신청자, 강의실\n\
+         행위 예약하다, 승인하다: 주체, 대상\n\
+         단위 원, 명\n\
+         신청자가 강의실을 예약한다: 이틀 전까지 신청한다\n\
+         정의 최대요금 = 12만 원\n\
+         미지 요금: 원\n\
+         조건 요금 >= 0 원\n\
+         목표 요금 <= 최대요금\n",
+    );
+    // 이름 없는 목표의 판정이 그 줄에 표시됩니다.
+    let goal = diagnostics
+        .iter()
+        .find(|d| d["range"]["start"]["line"] == 7)
+        .expect("goal finding");
+    assert!(
+        goal["message"]
+            .as_str()
+            .unwrap()
+            .contains("목표 '요금 <= 최대요금': 가능"),
+        "{goal}"
+    );
+
+    // 쉼표 뒤의 이름으로도 갑니다: '강의실을' → 대상 줄의 두 번째 이름
+    let target = client.at("textDocument/definition", 3, 6);
+    assert_eq!(range(&target["range"]), (0, 8, 0, 11));
+    // '예약한다' → 행위 줄의 첫 번째, 조건의 '요금' → 미지 줄 (조건 줄 자신이 아님)
+    let target = client.at("textDocument/definition", 3, 11);
+    assert_eq!(range(&target["range"]), (1, 3, 1, 7));
+    let target = client.at("textDocument/definition", 6, 4);
+    assert_eq!(range(&target["range"]), (5, 3, 5, 5));
+
+    // 단위에 마우스를 올리면 설명이 나옵니다.
+    let hover = client.at("textDocument/hover", 2, 3);
+    assert!(
+        hover["contents"]["value"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("**단위** `원`"),
+        "{hover}"
+    );
+    assert_eq!(client.stop(), 0);
+}

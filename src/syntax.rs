@@ -1,6 +1,9 @@
 use icu_normalizer::ComposingNormalizerBorrowed;
 use icu_properties::{CodePointMapData, props::GeneralCategory};
 
+use std::collections::BTreeSet;
+use std::sync::Mutex;
+
 use crate::Diagnostic;
 use crate::integer::Integer;
 
@@ -11,6 +14,7 @@ pub(crate) enum Type {
     Integer,
     Boolean,
     /// 지속 시간(두 시각의 차이). 0.1의 `시간` 타입과 같은 값입니다.
+    /// (더하고 뺄 수 있는 양인지는 `is_amount`로 확인합니다.)
     Time,
     /// 길이(두 위치의 차이).
     Distance,
@@ -22,6 +26,23 @@ pub(crate) enum Type {
     Entity,
     /// 퍼지 논리의 참 정도(0%~100%).
     Degree,
+    /// `단위 원`으로 선언한 단위로 세는 양. 단위가 다르면 서로 다른 타입입니다.
+    Custom(&'static str),
+}
+
+/// 단위 이름을 프로그램이 끝날 때까지 유지되는 문자열로 바꿉니다.
+/// 같은 이름은 한 번만 저장하므로 저장량은 서로 다른 단위 이름의 수를 넘지 않습니다.
+pub(crate) fn intern(name: &str) -> &'static str {
+    static NAMES: Mutex<BTreeSet<&'static str>> = Mutex::new(BTreeSet::new());
+    let mut names = NAMES
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    if let Some(&known) = names.get(name) {
+        return known;
+    }
+    let leaked: &'static str = Box::leak(name.to_owned().into_boxed_str());
+    names.insert(leaked);
+    leaked
 }
 
 impl Type {
@@ -35,6 +56,7 @@ impl Type {
             Self::Position => "위치",
             Self::Entity => "대상",
             Self::Degree => "정도",
+            Self::Custom(name) => name,
         }
     }
 
@@ -42,8 +64,17 @@ impl Type {
         match self {
             Self::Time | Self::Instant => Some("밀리초"),
             Self::Distance | Self::Position => Some("밀리미터"),
+            Self::Custom(name) => Some(name),
             _ => None,
         }
+    }
+
+    /// 더하고 빼고 정수배할 수 있는 양인지.
+    pub(crate) fn is_amount(self) -> bool {
+        matches!(
+            self,
+            Self::Integer | Self::Time | Self::Distance | Self::Custom(_)
+        )
     }
 
     /// 기준 위의 점이면 그 점들의 차이에 해당하는 타입을 돌려줍니다.
@@ -104,6 +135,8 @@ pub(crate) enum Kind {
     Verb,
     Reference,
     Rule,
+    /// `단위 원`
+    UnitDeclaration,
     /// `참조 N:` 뒤의 본문. 낱말로 나누지 않고 그대로 보관합니다.
     Text,
     Axis(Axis),
@@ -145,6 +178,30 @@ impl Token {
         self.line
     }
 
+    /// 같은 자리를 가리키되 글만 바꾼 토큰. 이름 없는 검사·조건·목표의 이름으로 씁니다.
+    pub(crate) fn renamed(&self, text: String) -> Token {
+        Token {
+            kind: Kind::Identifier,
+            text,
+            line: self.line,
+            column: self.column,
+        }
+    }
+
+    /// 한 줄에 이어 적힌 토큰들을 원문의 띄어쓰기대로 다시 잇습니다.
+    pub(crate) fn join(tokens: &[Token]) -> String {
+        let mut text = String::new();
+        let mut end = 0;
+        for token in tokens {
+            if !text.is_empty() && token.column > end {
+                text.push(' ');
+            }
+            text.push_str(&token.text);
+            end = token.column + token.text.encode_utf16().count();
+        }
+        text
+    }
+
     pub(crate) fn error(&self, code: &'static str, message: impl Into<String>) -> Diagnostic {
         Diagnostic {
             code,
@@ -168,6 +225,7 @@ fn classify_name(name: &str) -> Kind {
         "행위" => Kind::Verb,
         "규칙" => Kind::Rule,
         "참조" => Kind::Reference,
+        "단위" => Kind::UnitDeclaration,
         "정도" => Kind::Type(Type::Degree),
         "시간축" => Kind::Axis(Axis::Time),
         "위치축" => Kind::Axis(Axis::Space),
@@ -190,6 +248,30 @@ fn classify_name(name: &str) -> Kind {
         "미터" => Kind::Unit(Type::Distance, 1000),
         _ => Kind::Identifier,
     }
+}
+
+/// `만`, `천만`, `억`처럼 큰 수를 나타내는 낱말로 시작하면 그 배수(십진수 글)와 나머지를 돌려줍니다.
+pub(crate) fn split_multiplier(word: &str) -> Option<(&'static str, &str)> {
+    const WORDS: &[(&str, &str)] = &[
+        ("천조", "1000000000000000"),
+        ("백조", "100000000000000"),
+        ("십조", "10000000000000"),
+        ("조", "1000000000000"),
+        ("천억", "100000000000"),
+        ("백억", "10000000000"),
+        ("십억", "1000000000"),
+        ("억", "100000000"),
+        ("천만", "10000000"),
+        ("백만", "1000000"),
+        ("십만", "100000"),
+        ("만", "10000"),
+        ("천", "1000"),
+        ("백", "100"),
+        ("십", "10"),
+    ];
+    WORDS
+        .iter()
+        .find_map(|&(name, factor)| word.strip_prefix(name).map(|rest| (factor, rest)))
 }
 
 fn is_name_start(ch: char) -> bool {
@@ -319,8 +401,10 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
             });
 
             // `참조 N:` 뒤는 자유 본문입니다. 주석 기호 `#`도 본문에 포함합니다.
+            // 문장 뒤의 `: 설명`도 같습니다. 문장은 선언 낱말로 시작하지 않는 줄이며,
+            // 두 번째 자리의 ':'는 문장에 붙인 이름(`이름: 문장`)이므로 설명이 아닙니다.
             let line_tokens = &tokens[tokens.len() - count..];
-            if count == 3
+            let reference_body = count == 3
                 && matches!(
                     line_tokens
                         .iter()
@@ -328,8 +412,10 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                         .collect::<Vec<_>>()
                         .as_slice(),
                     [Kind::Reference, Kind::Number, Kind::Colon]
-                )
-            {
+                );
+            let sentence_note =
+                count >= 3 && kind == Kind::Colon && line_tokens[0].kind == Kind::Identifier;
+            if reference_body || sentence_note {
                 let rest = characters
                     .peek()
                     .map_or(text.len(), |&(position, _)| position);
@@ -363,6 +449,14 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
 
 pub(crate) enum Expression {
     Literal(Type, Integer),
+    /// `120만 원`, `30 분`처럼 수 뒤에 낱말이 붙은 양.
+    /// 낱말이 단위이면 값은 `settled + last`, `만원`처럼 큰 수 낱말이 붙어 있으면
+    /// `settled + last × 만`입니다. 어느 쪽인지는 선언된 단위를 보고 정합니다.
+    Quantity {
+        settled: Integer,
+        last: Integer,
+        word: Token,
+    },
     Reference(Token),
     Unary(Token, Box<Expression>),
     Binary(Token, Box<Expression>, Box<Expression>),
@@ -378,11 +472,18 @@ pub(crate) struct Role {
 }
 
 pub(crate) enum Statement {
-    /// `정의`(타입 있음)와 `검사`(타입 없음).
+    /// `정의`와 `검사`. 정의의 타입과 검사의 이름은 생략할 수 있습니다.
     Value {
         name: Token,
-        declared_type: Option<Type>,
+        check: bool,
+        /// 이름을 적지 않은 검사. `name`은 식을 그대로 옮긴 글입니다.
+        anonymous: bool,
+        declared_type: Option<(Type, Token)>,
         expression: Expression,
+    },
+    /// `단위 원`
+    Unit {
+        name: Token,
     },
     Frame {
         name: Token,
@@ -399,11 +500,14 @@ pub(crate) enum Statement {
     Unknown {
         name: Token,
         kind: Type,
+        kind_token: Token,
         frame: Option<Token>,
     },
     /// `조건`(모든 해가 따라야 하는 가정)과 `목표`(가능·보장 여부를 판정할 식).
     Constraint {
         name: Token,
+        /// 이름을 적지 않았으면 `name`은 식을 그대로 옮긴 글입니다.
+        anonymous: bool,
         goal: bool,
         expression: Expression,
     },
@@ -435,5 +539,7 @@ pub(crate) enum Statement {
     Sentence {
         label: Option<Token>,
         tokens: Vec<Token>,
+        /// 문장 뒤에 `: 설명`으로 적은 글.
+        note: Option<Token>,
     },
 }

@@ -544,6 +544,7 @@ pub(crate) fn bind_line(
                 tense: tense.map(Tense::name),
                 roles: clause.ir_roles,
                 references: citations.iter().map(|(n, _)| *n).collect(),
+                note: None,
             },
             degree,
             roles: clause.values,
