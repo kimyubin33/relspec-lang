@@ -10,6 +10,8 @@
 | 가능 세계 | 모든 미지값에 값을 하나씩 정한 하나의 경우. 13장에서는 방식을 정하지 않은 규칙마다 방식을 하나씩 고른 경우 | 7, 13 |
 | 강도 | 규칙이 성립하는 정도. 결론이 가질 수 있는 최대 정도 | 13 |
 | 구체화 (reification) | 관계나 사건을 하나의 것(점)으로 세워, 거기에 여러 성질을 다는 방법 | 18 |
+| 계산 검사 | 문법, 단위, 역할, 모순, 빈칸을 계산으로 확인하는 검사. 같은 글이면 항상 같은 결과 | 1, 20 |
+| 관문 | 계산 검사의 오류. 하나라도 있으면 다른 점수와 상관없이 실패 (계획) | 20 |
 | 결합가 (valency) | 동사가 거느리는 필수 성분의 수 (Tesnière) | 8 |
 | 관측 | 미지값의 실제 값을 기록하는 문장 | 7 |
 | 곱 방식 (Larsen) | 결론 = 전제 × 강도. `곱으로` | 13 |
@@ -38,6 +40,7 @@
 | 미지값 | 값을 모르는 채로 선언한 양이나 점 | 7 |
 | 빈칸 | 낱말의 차원 가운데 값을 적지 않은 것. 오류가 아니며 목록으로 보고됨 | 19 |
 | 받침 | 한글 음절의 종성 | 8 |
+| 배치도 | 장면을 계산으로 그린 도면. 글 옆에 실시간으로 보여 줄 계획 | 20 |
 | 배중률 | "A 또는 아님 A"는 항상 참이라는 고전 논리의 법칙 | 10 |
 | 보장 | 목표가 모든 해에서 참인 판정 | 7 |
 | 불가능 | 목표가 어떤 해에서도 참이 아닌 판정 | 7 |
@@ -46,6 +49,7 @@
 | 사건 의미론 | 행위 문장을 사건에 대한 서술로 보는 이론 (Davidson, Parsons) | 6 |
 | 상수 접기 | 컴파일할 때 값을 미리 계산해 두는 것 | 4 |
 | 선언형 언어 | 계산 절차 대신 성립해야 할 관계를 적는 언어 | 1 |
+| 실적 | 한 낱말을 쓴 글들이 지금까지의 검사에서 통과한 기록. 횟수와 함께 보여 줌 (계획) | 20 |
 | 실패로서의 부정 | 증명할 수 없는 것을 거짓으로 다루는 방식 (Clark) | 14 |
 | 연결망 | 명세에 적힌 것을 점으로, 그 관계를 선으로 옮긴 것 | 18 |
 | 언급 | 글에 선언한 이름이 나온 자리. 연결망의 점선 | 17, 18 |
@@ -57,9 +61,11 @@
 | 언어 서버 프로토콜 (LSP) | 편집기와 언어 도구가 주고받는 메시지의 약속 | 15 |
 | 의미 토큰 | 언어 서버가 뜻을 근거로 알려 주는 색칠 정보 | 15 |
 | 이름에 의한 타입 구분 | 이름이 다르면 다른 타입으로 보는 방식. 선언한 단위가 그렇습니다 | 16 |
+| AI 검사 | 글을 AI가 읽어 해석이 모이는지 재는 검사. 추정이며 실행마다 달라질 수 있음 (계획) | 1, 20 |
 | 아핀 공간 | 점과 벡터로 이루어진 구조. 점 − 점 = 벡터, 점 + 벡터 = 점 | 5 |
 | 어간 | 동사에서 활용할 때 바뀌지 않는 부분. 기본형에서 '다'를 뗀 것 | 8 |
 | 역할 | 사건에서 각 참여자나 시각이 맡는 자리. 주체, 대상, 시작 등 | 6 |
+| 일치 | 같은 글을 AI가 여러 번 읽었을 때 답이 한 가지로 모이는 정도. AI 검사가 재는 수 (계획) | 20 |
 | 이형태 | 같은 뜻의 다른 모양. 이/가, 을/를 | 8 |
 | 장면 | 보이는 것을 낱말과 차원으로 적은 묘사 하나. 들여쓰기로 안에 넣기를 나타냄 | 19 |
 | 전방 추론 | 아는 사실에서 출발해 규칙을 적용하며 새 사실을 쌓아 가는 추론 | 14 |
@@ -175,6 +181,16 @@
 - Eades, P. (1984). A Heuristic for Graph Drawing. *Congressus Numerantium*, 42, 149–160.
 - Fruchterman, T. M. J., & Reingold, E. M. (1991). Graph Drawing by Force-directed Placement. *Software: Practice and Experience*, 21(11), 1129–1164.
 - Tarjan, R. E. (1975). Efficiency of a Good But Not Linear Set Union Algorithm. *Journal of the ACM*, 22(2), 215–225.
+
+**19장 낱말과 장면**
+
+- Minsky, M. (1974). *A Framework for Representing Knowledge*. MIT AI Laboratory Memo 306.
+- Fillmore, C. J. (1982). Frame Semantics. In *Linguistics in the Morning Calm*. Hanshin Publishing.
+
+**20장 앞으로**
+
+- Wang, X., Wei, J., Schuurmans, D., Le, Q., Chi, E., Narang, S., Chowdhery, A., & Zhou, D. (2022). Self-Consistency Improves Chain of Thought Reasoning in Language Models. *arXiv:2203.11171*.
+- Johnson, J., Krishna, R., Stark, M., Li, L.-J., Shamma, D. A., Bernstein, M., & Fei-Fei, L. (2015). Image Retrieval using Scene Graphs. *IEEE Conference on Computer Vision and Pattern Recognition (CVPR)*.
 
 **2장, 부록 C**
 
