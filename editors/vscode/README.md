@@ -39,24 +39,18 @@ VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec �
 
 ## 설치하기
 
-늘 쓰려면 이 폴더를 VS Code의 확장 폴더에 복사합니다. 복사하기 전에 위의 `npm install`을 마쳐서 `node_modules` 폴더가 함께 복사되어야 합니다.
-
-| 운영체제 | 확장 폴더 |
-| --- | --- |
-| Windows | `%USERPROFILE%\.vscode\extensions\relspec-kpl` |
-| macOS, Linux | `~/.vscode/extensions/relspec-kpl` |
-
-Windows PowerShell에서는 다음과 같이 복사합니다(저장소 경로는 자신의 것으로 바꿉니다). 대상 폴더가 이미 있으면 그 안에 `vscode` 폴더가 하나 더 생겨 확장으로 인식되지 않으므로, 먼저 지웁니다.
+이 폴더에서 설치 파일(.vsix)을 만들어 설치합니다. 위의 `npm.cmd install`을 먼저 마쳐야 합니다.
 
 ```powershell
-$dest = "$env:USERPROFILE\.vscode\extensions\relspec-kpl"
-if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
-Copy-Item -Recurse C:\anu\relspec-lang\editors\vscode $dest
+npx.cmd --yes @vscode/vsce package --skip-license
+code --install-extension relspec-kpl-0.10.0.vsix
 ```
 
-복사가 끝나면 `relspec-kpl` 폴더 바로 아래에 `package.json`과 `node_modules`가 있어야 합니다. 복사한 뒤 VS Code를 다시 시작합니다.
+파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.kpl` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `RelSpec`으로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.
 
-설치 파일(.vsix)로 묶으려면 이 폴더에서 `npx @vscode/vsce package`를 실행하고, 만들어진 파일을 VS Code의 "VSIX에서 설치"로 설치합니다. (이 방법은 개발 환경의 제약으로 아직 직접 확인하지 못했습니다.)
+확장을 고친 버전을 받았을 때는 같은 두 줄을 다시 실행합니다.
+
+확장 폴더(`~/.vscode/extensions`)에 이 폴더를 직접 복사하는 방법은 쓰지 않습니다. 파일이 맞게 들어가도 VS Code가 확장으로 등록하지 않는 경우가 있었습니다(Windows에서 확인).
 
 ## 언어 서버를 찾는 순서
 
@@ -83,7 +77,7 @@ npm test
 
 ## 확인한 범위
 
-위의 두 시험과 `tests/lsp.rs`로 색칠 규칙과 언어 서버의 동작을 확인했습니다. VS Code 창 안에서 확장을 직접 띄워 보는 확인은 아직 하지 못했으므로, 처음 실행할 때 문제가 있으면 "출력" 창의 "RelSpec (KPL)" 항목을 확인해 주세요.
+위의 두 시험과 `tests/lsp.rs`로 색칠 규칙과 언어 서버의 동작을 확인했습니다. Windows의 VS Code에서 .vsix로 설치해 언어 인식과 문법 색칠이 되는 것을 확인했습니다. 문제가 있으면 "출력" 창의 "RelSpec (KPL)" 항목을 확인해 주세요.
 
 ## 알려진 한계
 
