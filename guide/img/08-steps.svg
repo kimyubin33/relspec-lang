@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 250" width="880" height="250" role="img" aria-label="만드는 여섯 단계와 지금의 위치">
+<title>만드는 여섯 단계와 지금의 위치</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#667085"/></marker></defs>
+<rect x="0.5" y="0.5" width="879" height="249" rx="12" fill="#ffffff" stroke="#d0d5dd"/>
+<rect x="40" y="60" width="120" height="120" rx="8" fill="#dff5e8" stroke="#2e9e5b" stroke-width="1"/>
+<circle cx="100" cy="60" r="16" fill="#2e9e5b" stroke="none" stroke-width="0"/>
+<text x="100" y="66" font-size="15" fill="#fff" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">1</text>
+<text x="100" y="112" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">낱말과 장면</text>
+<text x="100" y="134" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">빈칸 · 채움 점수</text>
+<text x="100" y="166" font-size="12" fill="#2e9e5b" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">완료 (0.13)</text>
+<line x1="162" y1="120" x2="174" y2="120" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="176" y="60" width="120" height="120" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<circle cx="236" cy="60" r="16" fill="#98a2b3" stroke="none" stroke-width="0"/>
+<text x="236" y="66" font-size="15" fill="#fff" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">2</text>
+<text x="236" y="112" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">위치의 약속</text>
+<text x="236" y="134" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">모순 검사</text>
+<text x="236" y="166" font-size="12" fill="#667085" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AI 없이 가능</text>
+<line x1="298" y1="120" x2="310" y2="120" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="312" y="60" width="120" height="120" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<circle cx="372" cy="60" r="16" fill="#98a2b3" stroke="none" stroke-width="0"/>
+<text x="372" y="66" font-size="15" fill="#fff" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">3</text>
+<text x="372" y="112" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">배치도</text>
+<text x="372" y="134" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">나눈 화면</text>
+<text x="372" y="166" font-size="12" fill="#667085" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AI 없이 가능</text>
+<line x1="434" y1="120" x2="446" y2="120" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="448" y="60" width="120" height="120" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<circle cx="508" cy="60" r="16" fill="#98a2b3" stroke="none" stroke-width="0"/>
+<text x="508" y="66" font-size="15" fill="#fff" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">4</text>
+<text x="508" y="112" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">그림 AI로 보내기</text>
+<text x="508" y="134" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">사진과 대조</text>
+<text x="508" y="166" font-size="12" fill="#667085" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AI 필요</text>
+<line x1="570" y1="120" x2="582" y2="120" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="584" y="60" width="120" height="120" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<circle cx="644" cy="60" r="16" fill="#98a2b3" stroke="none" stroke-width="0"/>
+<text x="644" y="66" font-size="15" fill="#fff" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">5</text>
+<text x="644" y="112" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AI 검사</text>
+<text x="644" y="134" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">종합 판정</text>
+<text x="644" y="166" font-size="12" fill="#667085" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AI 필요</text>
+<line x1="706" y1="120" x2="718" y2="120" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+<rect x="720" y="60" width="120" height="120" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1" stroke-dasharray="5 4"/>
+<circle cx="780" cy="60" r="16" fill="#98a2b3" stroke="none" stroke-width="0"/>
+<text x="780" y="66" font-size="15" fill="#fff" text-anchor="middle" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">6</text>
+<text x="780" y="112" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">낱말의 실적</text>
+<text x="780" y="134" font-size="13.5" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">연결의 가중치</text>
+<text x="780" y="166" font-size="12" fill="#667085" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AI 필요</text>
+<text x="40" y="222" font-size="13.5" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">1~3단계는 계산만으로 동작합니다. 4단계부터 그림 AI와 AI 검사가 들어갑니다.</text>
+</svg>

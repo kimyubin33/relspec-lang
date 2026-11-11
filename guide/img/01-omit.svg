@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 880 400" width="880" height="400" role="img" aria-label="보통의 말은 낱말의 차원을 생략하고, AHAA는 빈칸으로 보여 준다">
+<title>보통의 말은 낱말의 차원을 생략하고, AHAA는 빈칸으로 보여 준다</title>
+<defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#667085"/></marker></defs>
+<rect x="0.5" y="0.5" width="879" height="399" rx="12" fill="#ffffff" stroke="#d0d5dd"/>
+<text x="40" y="44" font-size="17" fill="#1f2430" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">보통의 말</text>
+<text x="480" y="44" font-size="17" fill="#1f2430" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">AHAA</text>
+<rect x="40" y="64" width="360" height="300" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<rect x="480" y="64" width="360" height="300" rx="8" fill="#f5f7fa" stroke="#d0d5dd" stroke-width="1"/>
+<rect x="70" y="96" width="170" height="50" rx="25" fill="#fff" stroke="#d0d5dd" stroke-width="1"/>
+<text x="155" y="127" font-size="17" fill="#1f2430" text-anchor="middle" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">&quot;컵이 있다&quot;</text>
+<text x="92" y="190" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">색은?</text>
+<text x="250" y="190" font-size="14" fill="#98a2b3" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">적혀 있지 않음</text>
+<text x="92" y="230" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">재질은?</text>
+<text x="250" y="230" font-size="14" fill="#98a2b3" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">적혀 있지 않음</text>
+<text x="92" y="270" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">크기는?</text>
+<text x="250" y="270" font-size="14" fill="#98a2b3" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">적혀 있지 않음</text>
+<text x="92" y="310" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">얼마나 찼나?</text>
+<text x="250" y="310" font-size="14" fill="#98a2b3" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">적혀 있지 않음</text>
+<text x="70" y="348" font-size="14" fill="#d1433b" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">읽는 쪽이 매번 다르게 채웁니다</text>
+<text x="510" y="104" font-size="19" fill="#0e9bb5" text-anchor="start" font-weight="700" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">컵</text>
+<rect x="510" y="126" width="300" height="36" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1"/>
+<text x="526" y="150" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">색</text>
+<text x="610" y="150" font-size="15" fill="#1f2430" text-anchor="start" font-weight="600" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">흰색</text>
+<rect x="510" y="174" width="300" height="36" rx="8" fill="#fff" stroke="#d0d5dd" stroke-width="1"/>
+<text x="526" y="198" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">채움</text>
+<text x="610" y="198" font-size="15" fill="#1f2430" text-anchor="start" font-weight="600" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">80%</text>
+<rect x="510" y="222" width="300" height="36" rx="8" fill="#fff7e6" stroke="#c98a12" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="526" y="246" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">재질</text>
+<text x="610" y="246" font-size="15" fill="#c98a12" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">빈칸</text>
+<rect x="510" y="270" width="300" height="36" rx="8" fill="#fff7e6" stroke="#c98a12" stroke-width="1" stroke-dasharray="5 4"/>
+<text x="526" y="294" font-size="15" fill="#667085" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">크기</text>
+<text x="610" y="294" font-size="15" fill="#c98a12" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">빈칸</text>
+<text x="510" y="348" font-size="14" fill="#2e9e5b" text-anchor="start" font-weight="400" font-family="'Malgun Gothic','Apple SD Gothic Neo','Noto Sans KR','Noto Sans CJK KR',system-ui,sans-serif" xml:space="preserve">적지 않은 것이 무엇인지 보입니다</text>
+<line x1="408" y1="214" x2="472" y2="214" stroke="#667085" stroke-width="1.4" marker-end="url(#a)"/>
+</svg>
