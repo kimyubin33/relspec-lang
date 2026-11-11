@@ -28,8 +28,10 @@
 
    ```powershell
    cd editors/vscode
-   npm install
+   npm.cmd install
    ```
+
+   PowerShell은 기본 설정에서 `npm`(스크립트 `npm.ps1`)의 실행을 막으므로 `npm.cmd`를 씁니다. macOS와 Linux에서는 `npm install`입니다.
 
 ## 실행해 보기
 
@@ -44,7 +46,15 @@ VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec �
 | Windows | `%USERPROFILE%\.vscode\extensions\relspec-kpl` |
 | macOS, Linux | `~/.vscode/extensions/relspec-kpl` |
 
-복사한 뒤 VS Code를 다시 시작합니다.
+Windows PowerShell에서는 다음과 같이 복사합니다(저장소 경로는 자신의 것으로 바꿉니다). 대상 폴더가 이미 있으면 그 안에 `vscode` 폴더가 하나 더 생겨 확장으로 인식되지 않으므로, 먼저 지웁니다.
+
+```powershell
+$dest = "$env:USERPROFILE\.vscode\extensions\relspec-kpl"
+if (Test-Path $dest) { Remove-Item -Recurse -Force $dest }
+Copy-Item -Recurse C:\anu\relspec-lang\editors\vscode $dest
+```
+
+복사가 끝나면 `relspec-kpl` 폴더 바로 아래에 `package.json`과 `node_modules`가 있어야 합니다. 복사한 뒤 VS Code를 다시 시작합니다.
 
 설치 파일(.vsix)로 묶으려면 이 폴더에서 `npx @vscode/vsce package`를 실행하고, 만들어진 파일을 VS Code의 "VSIX에서 설치"로 설치합니다. (이 방법은 개발 환경의 제약으로 아직 직접 확인하지 못했습니다.)
 
