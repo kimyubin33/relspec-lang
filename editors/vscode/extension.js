@@ -1,5 +1,5 @@
-// RelSpec (KPL) VS Code 확장.
-// 문법 색칠은 syntaxes/kpl.tmLanguage.json이 맡고, 이 파일은 언어 서버(`kpl lsp`)를 실행해 연결합니다.
+// AHAA VS Code 확장.
+// 문법 색칠은 syntaxes/aha.tmLanguage.json이 맡고, 이 파일은 언어 서버(`aha lsp`)를 실행해 연결합니다.
 
 const fs = require("fs");
 const path = require("path");
@@ -9,13 +9,13 @@ const { LanguageClient, TransportKind } = require("vscode-languageclient/node");
 
 let client;
 
-/** 설정, 작업 폴더의 빌드 결과, PATH 순서로 kpl 실행 파일을 찾습니다. */
+/** 설정, 작업 폴더의 빌드 결과, PATH 순서로 aha 실행 파일을 찾습니다. */
 function findServer() {
-  const configured = vscode.workspace.getConfiguration("kpl").get("server.path");
+  const configured = vscode.workspace.getConfiguration("aha").get("server.path");
   if (configured) {
     return configured;
   }
-  const executable = process.platform === "win32" ? "kpl.exe" : "kpl";
+  const executable = process.platform === "win32" ? "aha.exe" : "aha";
   for (const folder of vscode.workspace.workspaceFolders ?? []) {
     for (const profile of ["release", "debug"]) {
       const candidate = path.join(folder.uri.fsPath, "target", profile, executable);
@@ -31,18 +31,18 @@ async function start() {
   const command = findServer();
   const run = { command, args: ["lsp"], transport: TransportKind.stdio };
   client = new LanguageClient(
-    "kpl",
-    "RelSpec (KPL)",
+    "aha",
+    "AHAA",
     { run, debug: run },
-    { documentSelector: [{ language: "kpl" }] }
+    { documentSelector: [{ language: "aha" }] }
   );
   try {
     await client.start();
   } catch (error) {
     client = undefined;
     vscode.window.showErrorMessage(
-      `RelSpec 언어 서버를 실행하지 못했습니다 (${command}). ` +
-        "저장소에서 'cargo build --release'로 빌드하거나, 설정 'kpl.server.path'에 kpl 실행 파일의 경로를 적으세요. " +
+      `AHAA 언어 서버를 실행하지 못했습니다 (${command}). ` +
+        "저장소에서 'cargo build --release'로 빌드하거나, 설정 'aha.server.path'에 aha 실행 파일의 경로를 적으세요. " +
         `(${error.message ?? error})`
     );
   }
@@ -59,7 +59,7 @@ async function stop() {
 let graphPanel;
 let graphFile;
 
-/** `kpl 그래프 파일 -`을 실행해 연결망 HTML을 받습니다. */
+/** `aha 그래프 파일 -`을 실행해 연결망 HTML을 받습니다. */
 function renderGraph(file) {
   return new Promise((resolve, reject) => {
     execFile(findServer(), ["그래프", file, "-"], { maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
@@ -80,14 +80,14 @@ async function refreshGraph() {
     graphPanel.webview.html = await renderGraph(graphFile);
   } catch (error) {
     // 오류가 있는 동안에는 마지막으로 성공한 그림을 그대로 둡니다.
-    vscode.window.setStatusBarMessage(`RelSpec 연결망: 오류를 고치면 다시 그립니다 (${error.message})`, 6000);
+    vscode.window.setStatusBarMessage(`AHAA 연결망: 오류를 고치면 다시 그립니다 (${error.message})`, 6000);
   }
 }
 
 async function showGraph() {
   const editor = vscode.window.activeTextEditor;
-  if (!editor || editor.document.languageId !== "kpl") {
-    vscode.window.showInformationMessage("연결망은 .kpl 파일을 연 상태에서 볼 수 있습니다.");
+  if (!editor || editor.document.languageId !== "aha") {
+    vscode.window.showInformationMessage("연결망은 .aha 파일을 연 상태에서 볼 수 있습니다.");
     return;
   }
   if (editor.document.isUntitled) {
@@ -99,7 +99,7 @@ async function showGraph() {
   }
   graphFile = editor.document.uri.fsPath;
   if (!graphPanel) {
-    graphPanel = vscode.window.createWebviewPanel("kplGraph", "RelSpec 연결망", vscode.ViewColumn.Beside, {
+    graphPanel = vscode.window.createWebviewPanel("ahaGraph", "AHAA 연결망", vscode.ViewColumn.Beside, {
       enableScripts: true,
       retainContextWhenHidden: true,
     });
@@ -129,18 +129,18 @@ async function showGraph() {
 
 async function activate(context) {
   context.subscriptions.push(
-    vscode.commands.registerCommand("kpl.showGraph", showGraph),
+    vscode.commands.registerCommand("aha.showGraph", showGraph),
     vscode.workspace.onDidSaveTextDocument((document) => {
       if (graphPanel && document.uri.fsPath === graphFile) {
         refreshGraph();
       }
     }),
-    vscode.commands.registerCommand("kpl.restartServer", async () => {
+    vscode.commands.registerCommand("aha.restartServer", async () => {
       await stop();
       await start();
     }),
     vscode.workspace.onDidChangeConfiguration(async (event) => {
-      if (event.affectsConfiguration("kpl.server.path")) {
+      if (event.affectsConfiguration("aha.server.path")) {
         await stop();
         await start();
       }

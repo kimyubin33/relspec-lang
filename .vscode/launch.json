@@ -2,14 +2,14 @@
   "version": "0.2.0",
   "configurations": [
     {
-      "name": "KPL Rust 컴파일러 실행",
+      "name": "AHAA Rust 컴파일러 실행",
       "type": "cppvsdbg",
       "request": "launch",
-      "preLaunchTask": "KPL Rust 컴파일러 빌드",
-      "program": "${workspaceFolder}/target/debug/kpl.exe",
+      "preLaunchTask": "AHAA Rust 컴파일러 빌드",
+      "program": "${workspaceFolder}/target/debug/aha.exe",
       "args": [
         "검사",
-        "${workspaceFolder}/examples/첫파일.kpl"
+        "${workspaceFolder}/examples/첫파일.aha"
       ],
       "cwd": "${workspaceFolder}",
       "console": "integratedTerminal"

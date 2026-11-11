@@ -9,7 +9,7 @@ fn sources() -> Vec<(String, String)> {
     for dir in ["examples", "examples/실패"] {
         for entry in fs::read_dir(dir).unwrap() {
             let path = entry.unwrap().path();
-            if path.extension().is_some_and(|ext| ext == "kpl") {
+            if path.extension().is_some_and(|ext| ext == "aha") {
                 sources.push((
                     path.display().to_string(),
                     fs::read_to_string(&path).unwrap(),
@@ -24,7 +24,7 @@ fn sources() -> Vec<(String, String)> {
             continue;
         }
         let text = fs::read_to_string(&path).unwrap();
-        for (index, block) in text.split("```kpl").skip(1).enumerate() {
+        for (index, block) in text.split("```aha").skip(1).enumerate() {
             if let Some((_, rest)) = block.split_once('\n')
                 && let Some((body, _)) = rest.split_once("```")
             {
@@ -38,7 +38,7 @@ fn sources() -> Vec<(String, String)> {
 fn survives(name: &str, text: &str) -> Result<(), String> {
     let owned = text.to_string();
     panic::catch_unwind(move || {
-        let _ = kpl::compile(&owned);
+        let _ = aha::compile(&owned);
     })
     .map_err(|_| format!("{name}: 다음 입력에서 컴파일러가 멈췄습니다:\n{text}\n"))
 }

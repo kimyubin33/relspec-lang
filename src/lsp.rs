@@ -89,7 +89,7 @@ pub(crate) fn run() -> ExitCode {
             // 입력이 닫히면 끝냅니다. 종료 요청 없이 닫혔다면 비정상 종료입니다.
             Ok(None) => return exit_code(server.shutdown),
             Err(error) => {
-                eprintln!("kpl lsp: {error}");
+                eprintln!("aha lsp: {error}");
                 return ExitCode::from(1);
             }
         };
@@ -202,7 +202,7 @@ impl Server {
         match method {
             "initialize" => respond(json!({
                 "capabilities": {
-                    // 1 = 문서 전체를 받습니다. .kpl 파일은 작아서 충분합니다.
+                    // 1 = 문서 전체를 받습니다. .aha 파일은 작아서 충분합니다.
                     "textDocumentSync": 1,
                     "completionProvider": {},
                     "hoverProvider": true,
@@ -214,7 +214,7 @@ impl Server {
                         "full": true,
                     },
                 },
-                "serverInfo": { "name": "kpl", "version": kpl::LANGUAGE_VERSION },
+                "serverInfo": { "name": "aha", "version": aha::LANGUAGE_VERSION },
             })),
             "shutdown" => {
                 self.shutdown = true;
@@ -651,13 +651,13 @@ fn notification(uri: &str, diagnostics: Vec<Value>) -> Value {
 fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
     let lines: Vec<&str> = text.lines().collect();
     // 편집 중인 문서는 어떤 모양이든 될 수 있습니다. 컴파일러가 멈추더라도 서버는 계속 돕니다.
-    let compiled = std::panic::catch_unwind(|| kpl::compile(text));
+    let compiled = std::panic::catch_unwind(|| aha::compile(text));
     match compiled {
         Err(_) => {
             let entry = json!({
                 "range": line_range(&lines, 1),
                 "severity": SEVERITY_ERROR,
-                "source": "kpl",
+                "source": "aha",
                 "message": "컴파일러 내부 오류입니다. 이 문서를 저장소에 알려 주시면 고치겠습니다.",
             });
             (vec![entry], None)
@@ -667,7 +667,7 @@ fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
                 "range": token_range(&lines, diagnostic.line, diagnostic.column),
                 "severity": SEVERITY_ERROR,
                 "code": diagnostic.code,
-                "source": "kpl",
+                "source": "aha",
                 "message": diagnostic.message,
             });
             (vec![entry], None)
@@ -684,7 +684,7 @@ fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
                     },
                     "severity": SEVERITY_WARNING,
                     "code": warning.code,
-                    "source": "kpl",
+                    "source": "aha",
                     "message": warning.message,
                 })
             });
@@ -697,7 +697,7 @@ fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
                             Level::Info => SEVERITY_INFORMATION,
                             Level::Warning => SEVERITY_WARNING,
                         },
-                        "source": "kpl",
+                        "source": "aha",
                         "message": finding.text,
                     })
                 })
@@ -709,7 +709,7 @@ fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
 }
 
 /// 컴파일 결과를 이름별 설명으로 바꿉니다.
-fn describe(program: &kpl::CompiledProgram, findings: Vec<report::Finding>) -> Info {
+fn describe(program: &aha::CompiledProgram, findings: Vec<report::Finding>) -> Info {
     let mut mentions: Vec<_> = program
         .mentions
         .iter()
@@ -801,7 +801,7 @@ fn describe(program: &kpl::CompiledProgram, findings: Vec<report::Finding>) -> I
             ),
         );
     }
-    let mut clause = |line: usize, verb: &str, form: &str, roles: &[kpl::IrSentenceRole]| {
+    let mut clause = |line: usize, verb: &str, form: &str, roles: &[aha::IrSentenceRole]| {
         info.forms.insert(form.to_string(), verb.to_string());
         let entry = info.roles.entry(line).or_default();
         for role in roles {

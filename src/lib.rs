@@ -16,7 +16,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.13";
+pub const LANGUAGE_VERSION: &str = "0.14";
 
 #[derive(Debug)]
 pub struct Diagnostic {

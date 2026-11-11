@@ -1,6 +1,6 @@
-# RelSpec (KPL) VS Code 확장
+# AHAA VS Code 확장
 
-`.kpl` 파일을 VS Code에서 코드처럼 쓰기 위한 확장입니다.
+`.aha` 파일을 VS Code에서 코드처럼 쓰기 위한 확장입니다.
 
 | 기능 | 내용 |
 | --- | --- |
@@ -12,10 +12,10 @@
 | 정의로 이동 | 이름(조사가 붙어 있어도 됨), 활용형(`눌렀다` → `행위 누르다`), `(참조 1)` → `참조 1:` |
 | 문서 개요 | 선언한 이름과 참조, 이름 붙은 문장의 목록 |
 | 본문 속 이름 | 설명, 참조, `본문:` 줄에 나온 선언한 이름을 변수 색으로 표시합니다(의미 토큰). |
-| 연결망 | "RelSpec: 연결망 보기" 명령이나 편집기 오른쪽 위의 아이콘으로, 이 파일의 연결망을 옆에 엽니다. 저장할 때마다 다시 그리고, 줄 번호를 누르면 그 줄로 갑니다. |
+| 연결망 | "AHAA: 연결망 보기" 명령이나 편집기 오른쪽 위의 아이콘으로, 이 파일의 연결망을 옆에 엽니다. 저장할 때마다 다시 그리고, 줄 번호를 누르면 그 줄로 갑니다. |
 | 본문 점검 | 정의와 같은 값(`K601`), 기준 없는 낱말(`K602`), 지시어(`K603`), 띄어쓰기(`K604`)를 그 낱말 아래에 경고로 표시합니다. |
 
-색칠은 `syntaxes/kpl.tmLanguage.json`이 맡고, 나머지는 컴파일러에 들어 있는 언어 서버(`kpl lsp`)가 맡습니다. 언어 서버는 Language Server Protocol을 따르므로 LSP를 지원하는 다른 편집기에서도 `kpl lsp`를 실행하도록 설정하면 같은 기능을 쓸 수 있습니다.
+색칠은 `syntaxes/aha.tmLanguage.json`이 맡고, 나머지는 컴파일러에 들어 있는 언어 서버(`aha lsp`)가 맡습니다. 언어 서버는 Language Server Protocol을 따르므로 LSP를 지원하는 다른 편집기에서도 `aha lsp`를 실행하도록 설정하면 같은 기능을 쓸 수 있습니다.
 
 ## 준비
 
@@ -36,7 +36,7 @@
 
 ## 실행해 보기
 
-VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec 확장 실행"). 확장이 들어간 새 VS Code 창이 저장소 폴더를 연 채로 뜹니다. 거기서 `examples/조건문.kpl`을 열어 보세요.
+VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("AHAA 확장 실행"). 확장이 들어간 새 VS Code 창이 저장소 폴더를 연 채로 뜹니다. 거기서 `examples/조건문.aha`을 열어 보세요.
 
 ## 설치하기
 
@@ -44,10 +44,10 @@ VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec �
 
 ```powershell
 npx.cmd --yes @vscode/vsce package --skip-license
-code --install-extension relspec-kpl-0.13.0.vsix
+code --install-extension ahaa-0.14.0.vsix
 ```
 
-파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.kpl` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `RelSpec`으로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.
+파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.aha` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `AHAA`으로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.
 
 확장을 고친 버전을 받았을 때는 같은 두 줄을 다시 실행합니다.
 
@@ -55,15 +55,15 @@ code --install-extension relspec-kpl-0.13.0.vsix
 
 ## 언어 서버를 찾는 순서
 
-확장은 `kpl` 실행 파일을 다음 순서로 찾습니다.
+확장은 `aha` 실행 파일을 다음 순서로 찾습니다.
 
-1. 설정 `kpl.server.path`에 적은 경로
-2. 열어 둔 작업 폴더의 `target/release/kpl`, 그다음 `target/debug/kpl` (Windows에서는 `kpl.exe`)
-3. `PATH`에 있는 `kpl`
+1. 설정 `aha.server.path`에 적은 경로
+2. 열어 둔 작업 폴더의 `target/release/aha`, 그다음 `target/debug/aha` (Windows에서는 `aha.exe`)
+3. `PATH`에 있는 `aha`
 
-저장소가 아닌 폴더의 `.kpl` 파일을 쓸 때는 1번이나 3번이 필요합니다. 저장소에서 `cargo install --path . --locked`를 실행하면 `kpl`이 `PATH`에 설치됩니다.
+저장소가 아닌 폴더의 `.aha` 파일을 쓸 때는 1번이나 3번이 필요합니다. 저장소에서 `cargo install --path . --locked`를 실행하면 `aha`가 `PATH`에 설치됩니다.
 
-서버를 찾지 못하면 오류 알림이 뜨고, 문법 색칠만 동작합니다. 컴파일러를 다시 빌드한 뒤에는 명령 팔레트의 "RelSpec: 언어 서버 다시 시작"을 실행하세요.
+서버를 찾지 못하면 오류 알림이 뜨고, 문법 색칠만 동작합니다. 컴파일러를 다시 빌드한 뒤에는 명령 팔레트의 "AHAA: 언어 서버 다시 시작"을 실행하세요.
 
 ## 시험
 
@@ -72,13 +72,13 @@ npm test
 ```
 
 - `test/grammar.test.js`: 색칠 규칙을 VS Code의 색칠 엔진(`vscode-textmate`)으로 돌려 낱말마다 기대한 종류로 색칠되는지 확인합니다.
-- `test/server.test.js`: VS Code가 쓰는 통신 라이브러리(`vscode-jsonrpc`)로 `kpl lsp`와 대화해 진단, 설명, 정의로 이동, 개요를 확인합니다.
+- `test/server.test.js`: VS Code가 쓰는 통신 라이브러리(`vscode-jsonrpc`)로 `aha lsp`와 대화해 진단, 설명, 정의로 이동, 개요를 확인합니다.
 
 언어 서버 자체의 시험은 저장소의 `tests/lsp.rs`에 있습니다(`cargo test`).
 
 ## 확인한 범위
 
-위의 두 시험과 `tests/lsp.rs`로 색칠 규칙과 언어 서버의 동작을 확인했습니다. Windows의 VS Code에서 .vsix로 설치해 언어 인식, 문법 색칠, 경고와 판정 표시가 되는 것을 확인했습니다. 문제가 있으면 "출력" 창의 "RelSpec (KPL)" 항목을 확인해 주세요.
+위의 두 시험과 `tests/lsp.rs`로 색칠 규칙과 언어 서버의 동작을 확인했습니다. Windows의 VS Code에서 .vsix로 설치해 언어 인식, 문법 색칠, 경고와 판정 표시가 되는 것을 확인했습니다. 문제가 있으면 "출력" 창의 "AHAA" 항목을 확인해 주세요.
 
 ## 알려진 한계
 

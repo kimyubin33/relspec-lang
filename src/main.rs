@@ -3,19 +3,19 @@ use std::{env, fs, io, path::Path, process::ExitCode};
 mod lsp;
 mod report;
 
-const USAGE: &str = "KPL 0.13\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl> | kpl 그래프 <파일.kpl> [-] | kpl lsp";
+const USAGE: &str = "AHAA 0.14\n사용법: aha 검사 <파일.aha> | aha 컴파일 <파일.aha> | aha 그래프 <파일.aha> [-] | aha lsp";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();
     // 언어 서버: 편집기가 실행합니다. 표준 입출력으로 LSP 메시지를 주고받습니다.
-    // VS Code는 `kpl lsp --stdio`처럼 통신 방식을 알리는 인자를 덧붙이므로, 첫 인자만 봅니다.
+    // VS Code는 `aha lsp --stdio`처럼 통신 방식을 알리는 인자를 덧붙이므로, 첫 인자만 봅니다.
     if matches!(
         args.first().and_then(|arg| arg.to_str()),
         Some("lsp" | "서버")
     ) {
         return lsp::run();
     }
-    // `kpl 그래프 파일 -`은 HTML을 파일로 쓰지 않고 표준 출력으로 냅니다(편집기가 씁니다).
+    // `aha 그래프 파일 -`은 HTML을 파일로 쓰지 않고 표준 출력으로 냅니다(편집기가 씁니다).
     let to_stdout = args.len() == 3 && args[2] == "-";
     let [command, filename] = &args[..args.len().min(if to_stdout { 2 } else { 3 })] else {
         if args.len() == 1 && (args[0] == "--help" || args[0] == "-h") {
@@ -41,14 +41,14 @@ fn main() -> ExitCode {
         Ok(source) => source,
         Err(error) => {
             if error.kind() == io::ErrorKind::InvalidData {
-                eprintln!("{}: UTF-8로 저장된 .kpl 파일을 입력하세요.", path.display());
+                eprintln!("{}: UTF-8로 저장된 .aha 파일을 입력하세요.", path.display());
             } else {
                 eprintln!("{}: {error}", path.display());
             }
             return ExitCode::from(2);
         }
     };
-    let program = match kpl::compile(&source) {
+    let program = match aha::compile(&source) {
         Ok(program) => program,
         Err(diagnostic) => {
             eprintln!("{}{diagnostic}", path.display());
@@ -60,7 +60,7 @@ fn main() -> ExitCode {
         let title = path
             .file_name()
             .map_or_else(String::new, |name| name.to_string_lossy().into_owned());
-        let html = kpl::graph::html(&kpl::graph::build(&program), &title);
+        let html = aha::graph::html(&aha::graph::build(&program), &title);
         if to_stdout {
             println!("{html}");
             return ExitCode::SUCCESS;
@@ -68,7 +68,7 @@ fn main() -> ExitCode {
         let output = path.with_extension("그래프.html");
         return match fs::write(&output, html) {
             Ok(()) => {
-                let built = kpl::graph::build(&program);
+                let built = aha::graph::build(&program);
                 let groups = built.components();
                 println!(
                     "연결망 | 점 {}개, 선 {}개, 덩어리 {}개",

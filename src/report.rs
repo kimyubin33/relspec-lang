@@ -1,6 +1,6 @@
 //! 검사 결과를 사람이 읽는 줄로 만듭니다. 명령줄 출력과 언어 서버가 함께 씁니다.
 
-use kpl::{CompiledProgram, IrOutcome};
+use aha::{CompiledProgram, IrOutcome};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Level {

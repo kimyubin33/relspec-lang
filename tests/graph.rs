@@ -1,9 +1,9 @@
 //! 0.12 연결망: 명세를 점과 선으로 옮긴 것.
 
-use kpl::graph::{Graph, build, html};
+use aha::graph::{Graph, build, html};
 
 fn graph(source: &str) -> Graph {
-    let program = kpl::compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"));
+    let program = aha::compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"));
     build(&program)
 }
 
@@ -120,12 +120,12 @@ fn separate_parts_of_a_specification_are_separate_groups() {
 #[test]
 fn the_page_is_self_contained_and_safe() {
     let g = graph("대상 컵\n행위 떨어지다: 주체\n컵이 떨어졌다: </script><b>굵게</b>\n");
-    let page = html(&g, "예제<1>.kpl");
+    let page = html(&g, "예제<1>.aha");
     assert!(page.starts_with("<!doctype html>"));
     assert!(page.contains("\"id\":\"이름:컵\""));
     // 글에 든 태그가 문서를 깨뜨리지 않습니다.
     assert_eq!(page.matches("</script>").count(), 1);
-    assert!(page.contains("예제＜1＞.kpl"));
+    assert!(page.contains("예제＜1＞.aha"));
     // 다른 파일이나 주소를 부르지 않습니다.
     assert!(!page.contains("http://") && !page.contains("https://"));
     assert!(!page.contains("/*GRAPH*/") && !page.contains("/*TITLE*/"));

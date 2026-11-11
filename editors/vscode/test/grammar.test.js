@@ -4,7 +4,7 @@ const path = require("path");
 const vsctm = require("vscode-textmate");
 const oniguruma = require("vscode-oniguruma");
 
-const grammarPath = path.join(__dirname, "..", "syntaxes", "kpl.tmLanguage.json");
+const grammarPath = path.join(__dirname, "..", "syntaxes", "aha.tmLanguage.json");
 const wasm = fs.readFileSync(require.resolve("vscode-oniguruma/release/onig.wasm")).buffer;
 const lib = oniguruma.loadWASM(wasm).then(() => ({
   createOnigScanner: (p) => new oniguruma.OnigScanner(p),
@@ -102,7 +102,7 @@ const expectations = [
   [20, " 추정치를 만들지 말라 (근거 == 없음)", "string.unquoted.item"],
 ];
 
-registry.loadGrammar("source.kpl").then((grammar) => {
+registry.loadGrammar("source.aha").then((grammar) => {
   const lines = source.split("\n");
   const tokens = [];
   let stack = vsctm.INITIAL;

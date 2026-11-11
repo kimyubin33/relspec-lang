@@ -1,6 +1,6 @@
 //! 0.4 문장 문법, 참조와 지시어, 정도(퍼지 논리).
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"))
@@ -219,7 +219,7 @@ fn degrees_follow_fuzzy_logic() {
 
 #[test]
 fn sentence_example_ships() {
-    let source = std::fs::read_to_string("examples/문장과정도.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/문장과정도.aha").unwrap();
     let program = ok(&source);
     assert!(!program.sentences.is_empty());
 }

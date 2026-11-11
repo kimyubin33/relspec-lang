@@ -1,6 +1,6 @@
 //! 0.13 낱말과 장면: 차원의 묶음인 낱말, 들여쓰기로 적는 장면, 빈칸과 채움 점수.
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"))
@@ -170,7 +170,7 @@ fn the_graph_shows_containment_and_blanks() {
     let program = ok(&format!(
         "{WORDS}장면 방\n  책상: 재질 나무\n    컵: 색 흰색\n행위 떨어지다: 주체\n컵이 떨어졌다\n"
     ));
-    let graph = kpl::graph::build(&program);
+    let graph = aha::graph::build(&program);
     let edge = |from: &str, to: &str| {
         graph
             .edges
@@ -186,7 +186,7 @@ fn the_graph_shows_containment_and_blanks() {
 
 #[test]
 fn shipped_example_reports_its_blanks() {
-    let source = std::fs::read_to_string("examples/장면.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/장면.aha").unwrap();
     let program = ok(&source);
     let scene = &program.scenes[0];
     assert_eq!((scene.items.len(), scene.fill), (6, 59));

@@ -2,12 +2,12 @@
 //!
 //! 코드 블록의 정보 문자열(```뒤의 글)로 기대 결과를 적습니다.
 //!
-//! - ```` ```kpl ```` : 그 블록만으로 컴파일되어야 합니다. 이후 `이어서` 블록의 앞부분이 됩니다.
-//! - ```` ```kpl 오류=K504 ```` : 그 블록만으로 컴파일하면 `K504`가 나와야 합니다.
-//! - ```` ```kpl 이어서 ```` : 바로 앞까지 쌓인 블록 뒤에 붙여 컴파일되어야 하며, 이후에도 쌓입니다.
-//! - ```` ```kpl 이어서 오류=K504 ```` : 앞까지 쌓인 블록 뒤에 붙이면 `K504`가 나와야 합니다(쌓이지 않음).
+//! - ```` ```aha ```` : 그 블록만으로 컴파일되어야 합니다. 이후 `이어서` 블록의 앞부분이 됩니다.
+//! - ```` ```aha 오류=K504 ```` : 그 블록만으로 컴파일하면 `K504`가 나와야 합니다.
+//! - ```` ```aha 이어서 ```` : 바로 앞까지 쌓인 블록 뒤에 붙여 컴파일되어야 하며, 이후에도 쌓입니다.
+//! - ```` ```aha 이어서 오류=K504 ```` : 앞까지 쌓인 블록 뒤에 붙이면 `K504`가 나와야 합니다(쌓이지 않음).
 //!
-//! - ```` ```kpl 경고=K601,K602 ```` : 컴파일되고, 본문 점검의 알림이 적힌 순서대로 정확히 이것들이어야 합니다.
+//! - ```` ```aha 경고=K601,K602 ```` : 컴파일되고, 본문 점검의 알림이 적힌 순서대로 정확히 이것들이어야 합니다.
 //!   `경고=`가 없는 블록의 알림은 확인하지 않습니다.
 //!
 //! 그 밖의 블록(```text, ```powershell 등)은 검사하지 않습니다.
@@ -35,7 +35,7 @@ fn blocks() -> Vec<Block> {
         for (index, line) in text.lines().enumerate() {
             match current.as_mut() {
                 None => {
-                    if let Some(info) = line.strip_prefix("```kpl") {
+                    if let Some(info) = line.strip_prefix("```aha") {
                         current = Some(Block {
                             file: path.display().to_string(),
                             line: index + 1,
@@ -93,7 +93,7 @@ fn every_book_example_behaves_as_written() {
             .info
             .split_whitespace()
             .find_map(|w| w.strip_prefix("경고="));
-        let result = kpl::compile(&source);
+        let result = aha::compile(&source);
         checked += 1;
         match (&expected, result) {
             (None, Ok(program)) => {

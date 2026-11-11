@@ -1,6 +1,6 @@
 //! 0.3 미지값과 제약: 모순·가능·보장의 구분.
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}"))
@@ -48,7 +48,7 @@ fn separates_possible_guaranteed_and_impossible() {
     assert_eq!(unknown.frame.as_deref(), Some("실험시계"));
 
     let ir = serde_json::to_value(&program).unwrap();
-    assert_eq!(ir["languageVersion"], kpl::LANGUAGE_VERSION);
+    assert_eq!(ir["languageVersion"], aha::LANGUAGE_VERSION);
     assert_eq!(ir["goals"][0]["missingObservations"][0], "반응");
     assert_eq!(ir["constraints"][1]["kind"], "조건");
 }
@@ -214,7 +214,7 @@ fn unknown_declarations_need_the_right_form() {
 
 #[test]
 fn reaction_example_ships() {
-    let source = std::fs::read_to_string("examples/반응마감.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/반응마감.aha").unwrap();
     let program = ok(&source);
     assert_eq!(goal(&program, "마감준수").0, "가능");
     assert_eq!(goal(&program, "넉넉한마감").0, "보장");

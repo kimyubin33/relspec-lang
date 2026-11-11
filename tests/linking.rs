@@ -1,6 +1,6 @@
 //! 0.5 문장과 제약의 연결: 문장·사건 역할의 미지값, 시간 순서 제약, 시제.
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"))
@@ -189,7 +189,7 @@ fn positions_may_move_backwards() {
 
 #[test]
 fn tense_example_ships() {
-    let source = std::fs::read_to_string("examples/반응시제.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/반응시제.aha").unwrap();
     let program = ok(&source);
     assert_eq!(range(&program, "반응"), some("1000", "3000"));
     assert_eq!(status(&program, "마감"), "가능");

@@ -1,6 +1,6 @@
 //! 0.6 정도의 전파: 규칙, 최소(Mamdani)·곱(Larsen) 방식, 방식에 따른 세계 나누기.
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"))
@@ -13,7 +13,7 @@ fn fails(source: &str) -> (&'static str, usize) {
     (diagnostic.code, diagnostic.line)
 }
 
-fn rule<'a>(program: &'a CompiledProgram, name: &str) -> &'a kpl::IrRule {
+fn rule<'a>(program: &'a CompiledProgram, name: &str) -> &'a aha::IrRule {
     program.rules.iter().find(|r| r.name == name).expect("rule")
 }
 
@@ -229,7 +229,7 @@ fn diagnostic_particles_follow_the_final_consonant() {
 
 #[test]
 fn propagation_example_ships() {
-    let source = std::fs::read_to_string("examples/정도전파.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/정도전파.aha").unwrap();
     let program = ok(&source);
     assert_eq!(goal(&program, "깨짐확실").0, "보장");
     assert_eq!(goal(&program, "깨짐심함").0, "가능");
@@ -255,5 +255,5 @@ fn progress_document_example_is_current() {
         ("가능", vec!["깨짐".to_string()])
     );
     assert_eq!(program.unknowns[0].max.as_deref(), Some("3000"));
-    assert!(text.contains(&format!("| 언어 버전 | {} |", kpl::LANGUAGE_VERSION)));
+    assert!(text.contains(&format!("| 언어 버전 | {} |", aha::LANGUAGE_VERSION)));
 }

@@ -1,6 +1,6 @@
 //! 0.9 쓰기 쉽게: 여러 이름 선언, 이름 없는 검사·조건·목표, 타입 생략, 단위, 문장 옆 설명.
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"))
@@ -179,7 +179,7 @@ fn a_sentence_carries_its_explanation() {
 
 #[test]
 fn shipped_example_compiles() {
-    let source = std::fs::read_to_string("examples/쓰기쉽게.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/쓰기쉽게.aha").unwrap();
     let program = ok(&source);
     let status = |name: &str| {
         program

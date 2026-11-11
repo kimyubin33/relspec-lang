@@ -2,8 +2,8 @@
 
 **AHAA**는 사람이 AI에게 전할 내용을 빠뜨린 것 없이 적도록 돕는 언어입니다. 사람(Human)이 AI에게 말을 전하기 전에, 그 글이 얼마나 채워졌는지를 계산과 AI 두 가지 방식으로 검사받는다는 뜻에서 붙인 이름입니다. 읽을 때는 "아하"입니다.
 
-- 이 저장소의 이름은 아직 `relspec-lang`이고, 실행 파일은 `kpl`, 파일 확장자는 `.kpl`입니다. 이름을 AHAA로 바꾸는 것은 검토 중이며 이 설명서에서 먼저 씁니다.
-- 그림마다 **지금 동작하는 것**과 **계획**을 구분해 표시했습니다. 지금 버전은 0.13입니다.
+- 실행 파일은 `aha`, 파일 확장자는 `.aha`입니다. 0.13까지의 이름은 RelSpec이었고(명령 `kpl`, 확장자 `.kpl`), 저장소 주소는 그대로 `relspec-lang`입니다.
+- 그림마다 **지금 동작하는 것**과 **계획**을 구분해 표시했습니다. 지금 버전은 0.14입니다.
 - 자세한 문법과 이론은 [교재](../book/README.md)에, 앞으로의 설계는 [설계안](../DESIGN.md)에 있습니다.
 
 ## 1. 왜 필요한가: 낱말은 대부분을 생략한다
@@ -75,7 +75,7 @@ AHAA에서 낱말은 이름표 하나가 아니라 **차원의 묶음**입니다
 
 ## 6. 연결망: 글이 그물이 된다
 
-적은 것은 점이 되고, 그 사이의 관계는 선이 됩니다. `kpl 그래프 파일.kpl`로 만듭니다.
+적은 것은 점이 되고, 그 사이의 관계는 선이 됩니다. `aha 그래프 파일.aha`로 만듭니다.
 
 ![장면의 연결망: 장면, 낱말, 행위, 문장이 점이 되고 포함과 역할이 선이 된다](img/graph-scene.png)
 
@@ -140,8 +140,8 @@ Rust가 필요합니다. Windows PowerShell 기준입니다.
 git clone https://github.com/kimyubin33/relspec-lang.git
 cd relspec-lang
 cargo build --release
-.\target\release\kpl.exe 검사 examples\장면.kpl
-.\target\release\kpl.exe 그래프 examples\장면.kpl
+.\target\release\aha.exe 검사 examples\장면.aha
+.\target\release\aha.exe 그래프 examples\장면.aha
 ```
 
 첫 명령은 빈칸과 채움 점수를 보여 주고, 둘째 명령은 연결망을 `examples\장면.그래프.html`로 만듭니다. 그 파일을 브라우저로 열면 됩니다.

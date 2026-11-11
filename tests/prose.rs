@@ -1,6 +1,6 @@
 //! 0.10 본문 점검: 본문 속의 선언한 이름, 정의와 같은 값, 기준 없는 낱말, 지시어, 띄어쓰기.
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"))
@@ -133,7 +133,7 @@ fn warnings_do_not_stop_compilation_and_stay_out_of_clean_output() {
 
 #[test]
 fn shipped_example_reports_the_documented_warnings() {
-    let source = std::fs::read_to_string("examples/본문점검.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/본문점검.aha").unwrap();
     let program = ok(&source);
     let codes: Vec<_> = program.warnings.iter().map(|w| (w.code, w.line)).collect();
     assert_eq!(
@@ -161,7 +161,7 @@ fn lines_starting_with_a_dash_belong_to_the_line_above() {
          강의실이 떨어지면 강의실이 깨진다: 설명\n\
          - 조건문에도 딸린다\n"
     ));
-    let texts = |items: &[kpl::IrItem]| -> Vec<String> {
+    let texts = |items: &[aha::IrItem]| -> Vec<String> {
         items.iter().map(|item| item.text.clone()).collect()
     };
     assert_eq!(

@@ -1,4 +1,4 @@
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn value(program: &CompiledProgram, name: &str) -> String {
     program

@@ -1,24 +1,26 @@
-# RelSpec
+# AHAA (아하)
 
-> 그림으로 먼저 보려면 **[AHAA(아하) 그림 설명서](guide/README.md)** 를 읽으세요. 이 언어의 새 이름으로 AHAA를 검토하고 있습니다.
+> 그림으로 먼저 보려면 **[AHAA 그림 설명서](guide/README.md)** 를 읽으세요.
 
-RelSpec(*Relation Specification*)은 시간, 공간, 사건의 관계를 명세하고 그 조건을 수학적으로 검사하는 언어입니다. 한글 문법부터 개발하며, 영어 문법도 같은 타입과 검사 규칙을 사용하도록 설계합니다.
+AHAA는 사람이 AI에게 전할 내용을 빠뜨린 것 없이 적도록 돕는 언어입니다. 낱말을 차원의 묶음으로 정의하고, 시간·공간·사건·정도의 관계를 적으며, 컴파일러가 그 글을 계산으로 검사합니다. 사람(Human)이 AI에게 말을 전하기 전에 그 글을 검사받는다는 뜻에서 붙인 이름이며, "아하"라고 읽습니다. 한글 문법으로 씁니다.
 
-현재는 Rust로 구현한 0.13 컴파일러이며, VS Code에서 코드처럼 쓸 수 있는 [확장](editors/vscode/README.md)과 언어 서버가 들어 있습니다. 언어의 목표와 이론적 근거는 [설계 방향](VISION.md)에 정리했습니다. 기초부터 이론까지 배우려면 [RelSpec 언어 교재](book/README.md)를 읽으세요. 명령 실행 파일 이름은 `kpl`, 소스 확장자는 `.kpl`입니다. 개발 방식과 어디까지 개발되었는지, 앞으로의 계획은 [개발 현황](PROGRESS.md)에, 버전별 세부 구현 상태는 [개발 방향과 구현 상태](DEVELOPMENT.md)에 정리했습니다.
+0.13까지의 이름은 RelSpec(*Relation Specification*)이었고, 명령은 `kpl`, 확장자는 `.kpl`이었습니다. 0.14에서 이름을 AHAA로, 명령을 `aha`로, 확장자를 `.aha`로 바꿨습니다. 저장소 주소는 그대로 `relspec-lang`입니다.
+
+현재는 Rust로 구현한 0.14 컴파일러이며, VS Code에서 코드처럼 쓸 수 있는 [확장](editors/vscode/README.md)과 언어 서버가 들어 있습니다. 언어의 목표와 이론적 근거는 [설계 방향](VISION.md)에 정리했습니다. 기초부터 이론까지 배우려면 [AHAA 언어 교재](book/README.md)를 읽으세요. 명령 실행 파일 이름은 `aha`, 소스 확장자는 `.aha`입니다. 개발 방식과 어디까지 개발되었는지, 앞으로의 계획은 [개발 현황](PROGRESS.md)에, 버전별 세부 구현 상태는 [개발 방향과 구현 상태](DEVELOPMENT.md)에 정리했습니다.
 
 ## 실행
 
 Rust와 Cargo가 설치된 환경에서 저장소 폴더를 열고 실행합니다.
 
 ```powershell
-cargo run --locked -- 검사 "./examples/첫파일.kpl"
-cargo run --locked -- 컴파일 "./examples/첫파일.kpl"
-cargo run --locked -- 검사 "./examples/사건관계.kpl"
-cargo run --locked -- 검사 "./examples/반응마감.kpl"
-cargo run --locked -- 검사 "./examples/문장과정도.kpl"
-cargo run --locked -- 검사 "./examples/반응시제.kpl"
-cargo run --locked -- 검사 "./examples/정도전파.kpl"
-cargo run --locked -- 검사 "./examples/조건문.kpl"
+cargo run --locked -- 검사 "./examples/첫파일.aha"
+cargo run --locked -- 컴파일 "./examples/첫파일.aha"
+cargo run --locked -- 검사 "./examples/사건관계.aha"
+cargo run --locked -- 검사 "./examples/반응마감.aha"
+cargo run --locked -- 검사 "./examples/문장과정도.aha"
+cargo run --locked -- 검사 "./examples/반응시제.aha"
+cargo run --locked -- 검사 "./examples/정도전파.aha"
+cargo run --locked -- 검사 "./examples/조건문.aha"
 cargo test --locked
 ```
 
@@ -27,7 +29,7 @@ cargo test --locked
 Windows용 실행 파일은 `cargo build --release --locked`로 빌드한 뒤 아래와 같이 실행할 수 있습니다.
 
 ```powershell
-.\target\release\kpl.exe 검사 ".\examples\첫파일.kpl"
+.\target\release\aha.exe 검사 ".\examples\첫파일.aha"
 ```
 
 ## 현재 문법
@@ -222,7 +224,7 @@ Windows용 실행 파일은 `cargo build --release --locked`로 빌드한 뒤 �
 목표 참석자 <= 정원                  # 결과에 식이 그대로 표시됩니다.
 ```
 
-`examples/쓰기쉽게.kpl`에 전체 예제가 있습니다.
+`examples/쓰기쉽게.aha`에 전체 예제가 있습니다.
 
 ### 낱말과 장면 (0.13)
 
@@ -244,14 +246,14 @@ Windows용 실행 파일은 `cargo build --release --locked`로 빌드한 뒤 �
 장면 '책상위': 낱말 3개, 채움 75% (빈칸 3개: 컵.재질, 빛.색, 빛.때)
 ```
 
-`examples/장면.kpl`에 예제가 있습니다.
+`examples/장면.aha`에 예제가 있습니다.
 
 ### 연결망 (0.12)
 
 명세에 적힌 것을 점으로, 그 관계를 선으로 옮겨 봅니다.
 
 ```powershell
-kpl 그래프 examples/조건문.kpl
+aha 그래프 examples/조건문.aha
 ```
 
 ```text
@@ -261,7 +263,7 @@ examples/조건문.그래프.html
 
 만들어진 HTML 파일 하나를 브라우저로 열면 됩니다(다른 파일이나 인터넷이 필요 없습니다). 대상·행위·값·기준이 점이 되고, 문장은 그 점들을 역할로 잇는 점이 됩니다. 정도는 문장의 점 둘레에 호로 그려집니다. 실선은 컴파일러가 확인한 관계이고, 점선은 자유로운 글에 선언한 이름이 나온 자리(언급)입니다.
 
-덩어리가 여럿이면 명세가 서로 이어지지 않은 부분들로 나뉘어 있다는 뜻이며, 무엇이 떨어져 있는지 출력합니다. VS Code에서는 "RelSpec: 연결망 보기" 명령으로 편집기 옆에 엽니다.
+덩어리가 여럿이면 명세가 서로 이어지지 않은 부분들로 나뉘어 있다는 뜻이며, 무엇이 떨어져 있는지 출력합니다. VS Code에서는 "AHAA: 연결망 보기" 명령으로 편집기 옆에 엽니다.
 
 ### 나누어 쓰기 (0.11)
 
@@ -276,7 +278,7 @@ examples/조건문.그래프.html
 - 강의실은 수업 목적으로만 쓴다
 ```
 
-`examples/나누어쓰기.kpl`에 예제가 있습니다.
+`examples/나누어쓰기.aha`에 예제가 있습니다.
 
 ### 본문 점검 (0.10)
 
@@ -298,7 +300,7 @@ examples/조건문.그래프.html
 | K604 | 선언한 이름을 띄어 씀 | `예약 마감` (↔ 예약마감) |
 | K605 | 글 한 줄이 80자를 넘음 | 여러 지시를 한 줄에 이어 적은 설명 |
 
-알림이 없다는 것은 위의 항목에 해당하는 곳이 없다는 뜻이지, 글이 한 가지로만 읽힌다는 보장이 아닙니다. 보장이 필요한 내용은 문장과 `조건`·`목표`로 적으세요. `examples/본문점검.kpl`에 예제가 있습니다.
+알림이 없다는 것은 위의 항목에 해당하는 곳이 없다는 뜻이지, 글이 한 가지로만 읽힌다는 보장이 아닙니다. 보장이 필요한 내용은 문장과 `조건`·`목표`로 적으세요. `examples/본문점검.aha`에 예제가 있습니다.
 
 ### 진단 코드
 
@@ -343,7 +345,7 @@ examples/조건문.그래프.html
 
 ## 편집기에서 쓰기
 
-`kpl lsp`는 Language Server Protocol(LSP)을 따르는 언어 서버입니다. 편집기가 이 명령을 실행해 표준 입출력으로 대화합니다.
+`aha lsp`는 Language Server Protocol(LSP)을 따르는 언어 서버입니다. 편집기가 이 명령을 실행해 표준 입출력으로 대화합니다.
 
 | 기능 | 내용 |
 | --- | --- |
@@ -366,4 +368,4 @@ npm install
 
 ## Rust 안전 정책
 
-`Cargo.toml`에서 `unsafe_code = "forbid"`를 설정했습니다. KPL 패키지의 라이브러리, CLI, 테스트에는 `unsafe` 블록, raw pointer 역참조, `unsafe` 함수 호출, 가변 정적 변수 접근을 사용하지 않습니다. Rust 표준 라이브러리와 외부 의존성의 내부 구현은 별도의 범위입니다.
+`Cargo.toml`에서 `unsafe_code = "forbid"`를 설정했습니다. AHAA 패키지의 라이브러리, CLI, 테스트에는 `unsafe` 블록, raw pointer 역참조, `unsafe` 함수 호출, 가변 정적 변수 접근을 사용하지 않습니다. Rust 표준 라이브러리와 외부 의존성의 내부 구현은 별도의 범위입니다.

@@ -1,6 +1,6 @@
 //! 0.7 문장으로 쓰는 규칙: `-면` 조건문, 사실 찾기, 결론의 사슬.
 
-use kpl::{CompiledProgram, compile};
+use aha::{CompiledProgram, compile};
 
 fn ok(source: &str) -> CompiledProgram {
     compile(source).unwrap_or_else(|error| panic!("{error}\n{source}"))
@@ -13,7 +13,7 @@ fn fails(source: &str) -> (&'static str, usize) {
     (diagnostic.code, diagnostic.line)
 }
 
-fn rule<'a>(program: &'a CompiledProgram, name: &str) -> &'a kpl::IrConditional {
+fn rule<'a>(program: &'a CompiledProgram, name: &str) -> &'a aha::IrConditional {
     program
         .conditionals
         .iter()
@@ -73,7 +73,7 @@ fn conditional_sentences_propagate_degrees() {
     assert_eq!(goal(&program, "다침있음"), ("보장", vec![]));
 
     let ir = serde_json::to_value(&program).unwrap();
-    assert_eq!(ir["languageVersion"], kpl::LANGUAGE_VERSION);
+    assert_eq!(ir["languageVersion"], aha::LANGUAGE_VERSION);
     assert_eq!(ir["conditionals"][0]["matchedLines"][0], 10);
     assert_eq!(
         ir["conditionals"][0]["condition"]["roles"][0]["value"],
@@ -324,7 +324,7 @@ fn demonstratives_and_references_span_both_clauses() {
 
 #[test]
 fn conditional_example_ships() {
-    let source = std::fs::read_to_string("examples/조건문.kpl").unwrap();
+    let source = std::fs::read_to_string("examples/조건문.aha").unwrap();
     let program = ok(&source);
     assert!(program.conditionals.len() >= 3);
 }

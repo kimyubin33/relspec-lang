@@ -1,8 +1,8 @@
 {
-  "name": "relspec-kpl",
-  "displayName": "RelSpec (KPL)",
-  "description": "RelSpec 관계 명세 언어(.kpl): 문법 색칠, 실시간 진단, 판정 결과 표시, 설명, 자동 완성, 정의로 이동",
-  "version": "0.13.0",
+  "name": "ahaa",
+  "displayName": "AHAA (아하)",
+  "description": "AHAA(아하) 언어(.aha): 문법 색칠, 실시간 진단, 판정 결과 표시, 설명, 자동 완성, 정의로 이동, 연결망",
+  "version": "0.14.0",
   "publisher": "kimyubin33",
   "license": "UNLICENSED",
   "private": true,
@@ -20,13 +20,14 @@
   "contributes": {
     "languages": [
       {
-        "id": "kpl",
+        "id": "aha",
         "aliases": [
-          "RelSpec",
-          "KPL",
-          "kpl"
+          "AHAA",
+          "아하",
+          "aha"
         ],
         "extensions": [
+          ".aha",
           ".kpl"
         ],
         "configuration": "./language-configuration.json"
@@ -34,34 +35,34 @@
     ],
     "grammars": [
       {
-        "language": "kpl",
-        "scopeName": "source.kpl",
-        "path": "./syntaxes/kpl.tmLanguage.json"
+        "language": "aha",
+        "scopeName": "source.aha",
+        "path": "./syntaxes/aha.tmLanguage.json"
       }
     ],
     "configuration": {
-      "title": "RelSpec (KPL)",
+      "title": "AHAA",
       "properties": {
-        "kpl.server.path": {
+        "aha.server.path": {
           "type": "string",
           "default": "",
-          "markdownDescription": "`kpl` 실행 파일의 경로입니다. 비워 두면 작업 폴더의 `target/release`, `target/debug`를 차례로 찾고, 없으면 `PATH`의 `kpl`을 씁니다."
+          "markdownDescription": "`aha` 실행 파일의 경로입니다. 비워 두면 작업 폴더의 `target/release`, `target/debug`를 차례로 찾고, 없으면 `PATH`의 `aha`를 씁니다."
         }
       }
     },
     "commands": [
       {
-        "command": "kpl.restartServer",
-        "title": "RelSpec: 언어 서버 다시 시작"
+        "command": "aha.restartServer",
+        "title": "AHAA: 언어 서버 다시 시작"
       },
       {
-        "command": "kpl.showGraph",
-        "title": "RelSpec: 연결망 보기",
+        "command": "aha.showGraph",
+        "title": "AHAA: 연결망 보기",
         "icon": "$(type-hierarchy)"
       }
     ],
     "configurationDefaults": {
-      "[kpl]": {
+      "[aha]": {
         "editor.wordWrap": "on",
         "editor.wrappingIndent": "indent",
         "editor.insertSpaces": true,
@@ -72,8 +73,8 @@
     "menus": {
       "editor/title": [
         {
-          "command": "kpl.showGraph",
-          "when": "editorLangId == kpl",
+          "command": "aha.showGraph",
+          "when": "editorLangId == aha",
           "group": "navigation"
         }
       ]

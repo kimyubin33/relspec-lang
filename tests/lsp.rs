@@ -1,4 +1,4 @@
-//! 언어 서버(`kpl lsp`)를 실제로 실행해 LSP 메시지를 주고받습니다.
+//! 언어 서버(`aha lsp`)를 실제로 실행해 LSP 메시지를 주고받습니다.
 
 use std::io::{BufRead, BufReader, Read, Write};
 use std::process::{Child, ChildStdin, Command, Stdio};
@@ -15,18 +15,18 @@ struct Client {
     next_id: u64,
 }
 
-const URI: &str = "file:///예제.kpl";
+const URI: &str = "file:///예제.aha";
 
 impl Client {
     fn start() -> Self {
-        let mut child = Command::new(env!("CARGO_BIN_EXE_kpl"))
+        let mut child = Command::new(env!("CARGO_BIN_EXE_aha"))
             // VS Code의 언어 클라이언트는 표준 입출력으로 연결할 때 `--stdio`를 덧붙입니다.
             .args(["lsp", "--stdio"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())
             .spawn()
-            .expect("kpl lsp 실행");
+            .expect("aha lsp 실행");
         let stdin = child.stdin.take();
         let stdout = child.stdout.take().unwrap();
         let (sender, incoming) = mpsc::channel();
@@ -68,7 +68,7 @@ impl Client {
             next_id: 1,
         };
         let reply = client.request("initialize", json!({ "capabilities": {} }));
-        assert_eq!(reply["result"]["serverInfo"]["name"], "kpl");
+        assert_eq!(reply["result"]["serverInfo"]["name"], "aha");
         client.notify("initialized", json!({}));
         client
     }
@@ -103,7 +103,7 @@ impl Client {
     fn open(&mut self, text: &str) -> Vec<Value> {
         self.notify(
             "textDocument/didOpen",
-            json!({ "textDocument": { "uri": URI, "languageId": "kpl", "version": 1, "text": text } }),
+            json!({ "textDocument": { "uri": URI, "languageId": "aha", "version": 1, "text": text } }),
         );
         self.diagnostics()
     }
@@ -188,7 +188,7 @@ fn announces_capabilities_and_shuts_down_cleanly() {
     assert!(capabilities["completionProvider"].is_object());
     assert_eq!(
         reply["result"]["serverInfo"]["version"],
-        kpl::LANGUAGE_VERSION
+        aha::LANGUAGE_VERSION
     );
     assert_eq!(client.stop(), 0);
 }
@@ -211,7 +211,7 @@ fn reports_errors_as_you_type() {
     let error = &diagnostics[0];
     assert_eq!(error["severity"], 1);
     assert_eq!(error["code"], "K504");
-    assert_eq!(error["source"], "kpl");
+    assert_eq!(error["source"], "aha");
     assert_eq!(range(&error["range"]), (2, 0, 2, 4));
     assert!(error["message"].as_str().unwrap().contains("주체"));
 

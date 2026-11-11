@@ -3,6 +3,16 @@
 version = 4
 
 [[package]]
+name = "aha"
+version = "0.14.0"
+dependencies = [
+ "icu_normalizer",
+ "icu_properties",
+ "serde",
+ "serde_json",
+]
+
+[[package]]
 name = "displaydoc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -101,16 +111,6 @@ name = "itoa"
 version = "1.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
-
-[[package]]
-name = "kpl"
-version = "0.13.0"
-dependencies = [
- "icu_normalizer",
- "icu_properties",
- "serde",
- "serde_json",
-]
 
 [[package]]
 name = "litemap"
