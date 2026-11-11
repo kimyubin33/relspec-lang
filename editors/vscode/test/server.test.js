@@ -1,5 +1,5 @@
 // VS Code가 쓰는 통신 라이브러리(vscode-jsonrpc)로 언어 서버와 대화해 봅니다. 실행: npm test
-// 먼저 저장소에서 `cargo build --release`(또는 `cargo build`)로 aha을 빌드해 두어야 합니다.
+// 먼저 저장소에서 `cargo build --release`(또는 `cargo build`)로 aha를 빌드해 두어야 합니다.
 const fs = require("fs");
 const path = require("path");
 const assert = require("assert");

@@ -36,7 +36,7 @@
 
 ## 실행해 보기
 
-VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("AHAA 확장 실행"). 확장이 들어간 새 VS Code 창이 저장소 폴더를 연 채로 뜹니다. 거기서 `examples/조건문.aha`을 열어 보세요.
+VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("AHAA 확장 실행"). 확장이 들어간 새 VS Code 창이 저장소 폴더를 연 채로 뜹니다. 거기서 `examples/조건문.aha`를 열어 보세요.
 
 ## 설치하기
 
@@ -47,7 +47,7 @@ npx.cmd --yes @vscode/vsce package --skip-license
 code --install-extension ahaa-0.14.0.vsix
 ```
 
-파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.aha` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `AHAA`으로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.
+파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.aha` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `AHAA`로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.
 
 확장을 고친 버전을 받았을 때는 같은 두 줄을 다시 실행합니다.
 
