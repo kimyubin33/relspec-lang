@@ -4,6 +4,7 @@
   "scopeName": "source.kpl",
   "patterns": [
     { "include": "#reference-definition" },
+    { "include": "#body-text" },
     { "include": "#comment" },
     { "include": "#declaration" },
     { "include": "#label" },
@@ -19,6 +20,15 @@
         "2": { "name": "constant.numeric.reference.kpl" },
         "3": { "name": "punctuation.separator.kpl" },
         "4": { "name": "string.unquoted.reference.kpl" }
+      }
+    },
+    "body-text": {
+      "comment": "본문: 글. 글 안의 #은 주석이 아닙니다.",
+      "match": "^\\s*(본문)\\s*(:)(.*)$",
+      "captures": {
+        "1": { "name": "keyword.control.declaration.kpl" },
+        "2": { "name": "punctuation.separator.kpl" },
+        "3": { "name": "string.unquoted.body.kpl" }
       }
     },
     "comment": {

@@ -3,7 +3,7 @@ use std::{env, fs, io, path::Path, process::ExitCode};
 mod lsp;
 mod report;
 
-const USAGE: &str = "KPL 0.9\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl> | kpl lsp";
+const USAGE: &str = "KPL 0.10\n사용법: kpl 검사 <파일.kpl> | kpl 컴파일 <파일.kpl> | kpl lsp";
 
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();
@@ -60,6 +60,17 @@ fn main() -> ExitCode {
         println!("{}", report::summary(&program));
         for finding in report::findings(&program) {
             println!("{}", finding.text);
+        }
+        // 본문 점검의 알림. 컴파일은 통과한 것이므로 종료 코드는 0입니다.
+        for warning in &program.warnings {
+            println!(
+                "{}({},{}): warning {}: {}",
+                path.display(),
+                warning.line,
+                warning.column,
+                warning.code,
+                warning.message
+            );
         }
     }
 

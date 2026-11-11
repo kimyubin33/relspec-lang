@@ -70,6 +70,17 @@ impl Parser<'_> {
                     last
                 }
                 Kind::Rule => self.rule_statement()?,
+                Kind::Body => {
+                    self.take();
+                    self.expect(
+                        Kind::Colon,
+                        "'본문' 뒤에 ':'와 글을 적으세요. 예: '본문: 글'",
+                    )?;
+                    if self.current().kind != Kind::Text || self.current().text.is_empty() {
+                        return Err(self.current().error("K200", "본문이 비어 있습니다."));
+                    }
+                    Statement::Body { text: self.take() }
+                }
                 Kind::Reference => {
                     self.take();
                     let number = self.expect(Kind::Number, "'참조' 뒤에 번호를 적으세요.")?;

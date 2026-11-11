@@ -489,3 +489,52 @@ fn understands_the_shorter_forms() {
     );
     assert_eq!(client.stop(), 0);
 }
+
+#[test]
+fn colours_names_in_bodies_and_reports_body_warnings() {
+    let mut client = Client::start();
+    let diagnostics = client.open(
+        "대상 신청자, 강의실\n\
+         행위 예약하다: 주체, 대상\n\
+         단위 원\n\
+         정의 기본요금 = 3만 원\n\
+         신청자가 강의실을 예약한다: 기본요금을 낸다\n\
+         본문: 신청자는 3만 원을 적절히 낸다\n",
+    );
+    // 본문 점검의 알림은 그 낱말의 범위에 경고로 표시됩니다.
+    let found: Vec<_> = diagnostics
+        .iter()
+        .filter(|d| d["severity"] == 2)
+        .map(|d| (d["code"].as_str().unwrap().to_string(), range(&d["range"])))
+        .collect();
+    assert_eq!(
+        found,
+        [
+            ("K601".to_string(), (5, 9, 5, 13)),
+            ("K602".to_string(), (5, 15, 5, 18)),
+        ]
+    );
+
+    // 본문 속의 선언한 이름: (줄 차이, 열 차이, 길이, 종류, 수식)
+    let tokens = client.request(
+        "textDocument/semanticTokens/full",
+        json!({ "textDocument": { "uri": URI } }),
+    );
+    assert_eq!(
+        tokens["result"]["data"],
+        json!([4, 16, 4, 0, 0, 1, 4, 3, 0, 0])
+    );
+
+    // 본문 속의 이름에서도 설명과 정의로 이동이 됩니다.
+    let hover = client.at("textDocument/hover", 4, 17);
+    assert!(
+        hover["contents"]["value"]
+            .as_str()
+            .unwrap_or_default()
+            .contains("**정의** `기본요금`: 원 = 30000 원"),
+        "{hover}"
+    );
+    let target = client.at("textDocument/definition", 5, 5);
+    assert_eq!(range(&target["range"]), (0, 3, 0, 6));
+    assert_eq!(client.stop(), 0);
+}

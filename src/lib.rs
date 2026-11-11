@@ -1,6 +1,7 @@
 mod degree;
 mod integer;
 mod parser;
+mod prose;
 mod sentence;
 mod solver;
 mod syntax;
@@ -14,7 +15,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.9";
+pub const LANGUAGE_VERSION: &str = "0.10";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -203,6 +204,34 @@ pub struct IrVerb {
     pub required: Vec<&'static str>,
 }
 
+/// `본문: 글`
+#[derive(Serialize)]
+pub struct IrText {
+    pub line: usize,
+    pub text: String,
+}
+
+/// 본문(설명, 참조, `본문:` 줄)에서 선언한 이름이 나온 자리.
+#[derive(Serialize)]
+pub struct IrMention {
+    pub line: usize,
+    /// UTF-16 열(1부터)
+    pub column: usize,
+    /// 이름의 길이(UTF-16). 뒤에 붙은 조사는 세지 않습니다.
+    pub length: usize,
+    pub name: String,
+}
+
+/// 컴파일을 막지 않는 알림. 본문 점검의 결과입니다.
+#[derive(Serialize)]
+pub struct IrWarning {
+    pub code: &'static str,
+    pub line: usize,
+    pub column: usize,
+    pub length: usize,
+    pub message: String,
+}
+
 #[derive(Serialize)]
 pub struct IrReference {
     pub number: u32,
@@ -317,6 +346,15 @@ pub struct CompiledProgram {
     pub rules: Vec<IrRule>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub conditionals: Vec<IrConditional>,
+    /// `본문:` 줄.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub texts: Vec<IrText>,
+    /// 본문에서 선언한 이름이 나온 자리.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub mentions: Vec<IrMention>,
+    /// 본문 점검의 알림. 컴파일을 막지 않습니다.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub warnings: Vec<IrWarning>,
 }
 
 /// 사건이 받을 수 있는 역할과 각 역할의 값 종류.
@@ -338,6 +376,9 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
     let mut program = CompiledProgram {
         language_version: LANGUAGE_VERSION,
         statements: Vec::new(),
+        texts: Vec::new(),
+        mentions: Vec::new(),
+        warnings: Vec::new(),
         units: Vec::new(),
         frames: Vec::new(),
         entities: Vec::new(),
@@ -354,6 +395,13 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
     let mut pending = Vec::new();
     let mut verbs: Vec<sentence::Verb> = Vec::new();
     let mut citations: Vec<(u32, Token)> = Vec::new();
+    // 낱말로 나누지 않는 글: 문장 뒤의 설명, 참조의 본문, `본문:` 줄.
+    let mut passages: Vec<prose::Passage> = Vec::new();
+    let passage = |token: &Token| prose::Passage {
+        line: token.line(),
+        column: token.column(),
+        text: token.text.clone(),
+    };
 
     for statement in statements {
         let name = match &statement {
@@ -377,6 +425,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
             // 행위와 참조는 값과 다른 이름 공간을 씁니다.
             Statement::Observe { .. }
             | Statement::Verb { .. }
+            | Statement::Body { .. }
             | Statement::ReferenceDefinition { .. } => None,
         };
         if let Some(name) = name
@@ -661,8 +710,16 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 if program.references.iter().any(|r| r.number == n) {
                     return Err(number.error("K512", format!("참조 {n}이 이미 정의되어 있습니다.")));
                 }
+                passages.push(passage(&text));
                 program.references.push(IrReference {
                     number: n,
+                    text: text.text,
+                });
+            }
+            Statement::Body { text } => {
+                passages.push(passage(&text));
+                program.texts.push(IrText {
+                    line: text.line(),
                     text: text.text,
                 });
             }
@@ -672,7 +729,10 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 note,
             } => {
                 let line = tokens[0].line();
-                let note = note.map(|token| token.text);
+                let note = note.map(|token| {
+                    passages.push(passage(&token));
+                    token.text
+                });
                 match sentence::bind_line(label.as_ref(), &tokens, &scope, &verbs)? {
                     sentence::BoundLine::Plain(bound) => {
                         let mut bound = *bound;
@@ -928,8 +988,54 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
         });
     }
 
+    // 본문 점검: 선언이 모두 끝난 뒤에 하므로, 본문보다 뒤에 선언한 이름도 알아봅니다.
+    let mut declared = prose::Declared {
+        names: scope.values.keys().cloned().collect(),
+        amounts: Vec::new(),
+        units: Vec::new(),
+    };
+    declared
+        .names
+        .extend(scope.frames.iter().map(|(name, _)| name.clone()));
+    declared.names.extend(scope.events.keys().cloned());
+    for statement in &program.statements {
+        if statement.kind == "정의"
+            && let Some(value) = scope.values.get(&statement.name)
+            && value.worlds.is_none()
+            && matches!(value.kind, Type::Time | Type::Distance | Type::Custom(_))
+        {
+            declared
+                .amounts
+                .push((statement.name.clone(), value.kind, value.number.clone()));
+        }
+    }
+    for unit in &program.units {
+        declared
+            .units
+            .push((unit.clone(), Type::Custom(syntax::intern(unit)), 1));
+    }
+    for (unit, kind, factor) in BUILTIN_UNITS {
+        if !scope.units.contains(*unit) {
+            declared.units.push((unit.to_string(), *kind, *factor));
+        }
+    }
+    (program.mentions, program.warnings) = prose::analyze(&passages, &declared);
+
     Ok(program)
 }
+
+/// 이미 있는 단위와, 기본 단위(밀리초·밀리미터)로 바꾸는 배수.
+const BUILTIN_UNITS: &[(&str, Type, u32)] = &[
+    ("밀리초", Type::Time, 1),
+    ("초", Type::Time, 1000),
+    ("분", Type::Time, 60_000),
+    ("시간", Type::Time, 3_600_000),
+    ("일", Type::Time, 86_400_000),
+    ("밀리미터", Type::Distance, 1),
+    ("센티미터", Type::Distance, 10),
+    ("미터", Type::Distance, 1000),
+    ("킬로미터", Type::Distance, 1_000_000),
+];
 
 /// 규칙을 적용해 결론의 정도를 구합니다. 방식을 정하지 않았으면 세계를 둘로 나눕니다:
 /// 최소로 계산한 세계와 곱으로 계산한 세계.
@@ -1787,13 +1893,10 @@ fn unit_of(word: &str, scope: &Scope) -> Option<(Type, u32)> {
     if scope.units.contains(word) {
         return Some((Type::Custom(syntax::intern(word)), 1));
     }
-    match word {
-        "분" => Some((Type::Time, 60_000)),
-        "시간" => Some((Type::Time, 3_600_000)),
-        "일" => Some((Type::Time, 86_400_000)),
-        "킬로미터" => Some((Type::Distance, 1_000_000)),
-        _ => None,
-    }
+    BUILTIN_UNITS
+        .iter()
+        .find(|(name, _, _)| *name == word)
+        .map(|&(_, kind, factor)| (kind, factor))
 }
 
 fn point_vector_pair(a: Type, b: Type) -> bool {

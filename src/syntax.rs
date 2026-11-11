@@ -137,6 +137,8 @@ pub(crate) enum Kind {
     Rule,
     /// `단위 원`
     UnitDeclaration,
+    /// `본문: 글`
+    Body,
     /// `참조 N:` 뒤의 본문. 낱말로 나누지 않고 그대로 보관합니다.
     Text,
     Axis(Axis),
@@ -176,6 +178,10 @@ pub(crate) struct Token {
 impl Token {
     pub(crate) fn line(&self) -> usize {
         self.line
+    }
+
+    pub(crate) fn column(&self) -> usize {
+        self.column
     }
 
     /// 같은 자리를 가리키되 글만 바꾼 토큰. 이름 없는 검사·조건·목표의 이름으로 씁니다.
@@ -226,6 +232,7 @@ fn classify_name(name: &str) -> Kind {
         "규칙" => Kind::Rule,
         "참조" => Kind::Reference,
         "단위" => Kind::UnitDeclaration,
+        "본문" => Kind::Body,
         "정도" => Kind::Type(Type::Degree),
         "시간축" => Kind::Axis(Axis::Time),
         "위치축" => Kind::Axis(Axis::Space),
@@ -415,7 +422,9 @@ pub(crate) fn scan(source: &str) -> Result<Vec<Token>, Diagnostic> {
                 );
             let sentence_note =
                 count >= 3 && kind == Kind::Colon && line_tokens[0].kind == Kind::Identifier;
-            if reference_body || sentence_note {
+            // `본문: 글`
+            let body_text = count == 2 && kind == Kind::Colon && line_tokens[0].kind == Kind::Body;
+            if reference_body || sentence_note || body_text {
                 let rest = characters
                     .peek()
                     .map_or(text.len(), |&(position, _)| position);
@@ -529,6 +538,10 @@ pub(crate) enum Statement {
         strength: Expression,
         /// `최소로` 또는 `곱으로`. 없으면 두 방식을 모두 계산합니다.
         method: Option<Token>,
+    },
+    /// `본문: 글`. 낱말로 나누지 않는 자유로운 글 한 줄.
+    Body {
+        text: Token,
     },
     /// `참조 1: 본문`
     ReferenceDefinition {

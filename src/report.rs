@@ -40,6 +40,7 @@ pub(crate) fn summary(program: &CompiledProgram) -> String {
         ("행위", program.verbs.len()),
         ("문장", program.sentences.len()),
         ("참조", program.references.len()),
+        ("본문", program.texts.len()),
         ("규칙", program.rules.len()),
         ("조건문", program.conditionals.len()),
     ] {

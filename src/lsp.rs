@@ -31,6 +31,7 @@ const STATEMENTS: &[(&str, &str)] = &[
     ("행위", "행위 기본형, ...: 필수역할, ..."),
     ("규칙", "규칙 이름: 전제 이면 강도 [최소로|곱으로]"),
     ("참조", "참조 번호: 본문"),
+    ("본문", "본문: 글  (선언한 이름을 알아보고 점검합니다)"),
 ];
 const TYPES: &[&str] = &["정수", "논리", "시간", "거리", "시각", "위치", "정도"];
 const WORDS: &[(&str, &str)] = &[
@@ -171,6 +172,8 @@ struct Info {
     forms: HashMap<String, String>,
     /// 줄(1부터) → 그 줄의 문장에서 (낱말, 역할)
     roles: HashMap<usize, Vec<(String, String)>>,
+    /// 본문에서 선언한 이름이 나온 자리: (행, 시작, 길이). 0부터, UTF-16.
+    mentions: Vec<(usize, usize, usize)>,
 }
 
 #[derive(Default)]
@@ -202,6 +205,11 @@ impl Server {
                     "hoverProvider": true,
                     "definitionProvider": true,
                     "documentSymbolProvider": true,
+                    // 본문 속의 선언한 이름을 색칠합니다.
+                    "semanticTokensProvider": {
+                        "legend": { "tokenTypes": ["variable"], "tokenModifiers": [] },
+                        "full": true,
+                    },
                 },
                 "serverInfo": { "name": "kpl", "version": kpl::LANGUAGE_VERSION },
             })),
@@ -232,6 +240,7 @@ impl Server {
             "textDocument/hover" => respond(self.hover(uri, row, character)),
             "textDocument/definition" => respond(self.definition(uri, row, character)),
             "textDocument/documentSymbol" => respond(self.symbols(uri)),
+            "textDocument/semanticTokens/full" => respond(self.semantic_tokens(uri)),
             // 알림(id 없음)은 모르는 것이어도 조용히 넘깁니다.
             _ => match id {
                 Some(id) => vec![json!({
@@ -382,6 +391,25 @@ impl Server {
             return Value::Null;
         };
         json!({ "uri": uri, "range": symbol.selection() })
+    }
+
+    /// 본문 속 이름의 자리를 LSP의 상대 위치 형식(줄 차이, 열 차이, 길이, 종류, 수식)으로 냅니다.
+    fn semantic_tokens(&self, uri: &str) -> Value {
+        let mut data = Vec::new();
+        let (mut last_row, mut last_start) = (0, 0);
+        if let Some(document) = self.documents.get(uri) {
+            for &(row, start, length) in &document.info.mentions {
+                let delta_row = row - last_row;
+                let delta_start = if delta_row == 0 {
+                    start - last_start
+                } else {
+                    start
+                };
+                data.extend([delta_row, delta_start, length, 0, 0]);
+                (last_row, last_start) = (row, start);
+            }
+        }
+        json!({ "data": data })
     }
 
     fn symbols(&self, uri: &str) -> Value {
@@ -642,6 +670,20 @@ fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
         }
         Ok(Ok(program)) => {
             let findings = report::findings(&program);
+            let warnings = program.warnings.iter().map(|warning| {
+                let row = warning.line.saturating_sub(1);
+                let start = warning.column.saturating_sub(1);
+                json!({
+                    "range": {
+                        "start": position(row, start),
+                        "end": position(row, start + warning.length),
+                    },
+                    "severity": SEVERITY_WARNING,
+                    "code": warning.code,
+                    "source": "kpl",
+                    "message": warning.message,
+                })
+            });
             let diagnostics = findings
                 .iter()
                 .map(|finding| {
@@ -655,6 +697,7 @@ fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
                         "message": finding.text,
                     })
                 })
+                .chain(warnings)
                 .collect();
             (diagnostics, Some(describe(&program, findings)))
         }
@@ -663,7 +706,22 @@ fn analyze(text: &str) -> (Vec<Value>, Option<Info>) {
 
 /// 컴파일 결과를 이름별 설명으로 바꿉니다.
 fn describe(program: &kpl::CompiledProgram, findings: Vec<report::Finding>) -> Info {
-    let mut info = Info::default();
+    let mut mentions: Vec<_> = program
+        .mentions
+        .iter()
+        .map(|m| {
+            (
+                m.line.saturating_sub(1),
+                m.column.saturating_sub(1),
+                m.length,
+            )
+        })
+        .collect();
+    mentions.sort_unstable();
+    let mut info = Info {
+        mentions,
+        ..Info::default()
+    };
     let quantity = |value: &str, unit: Option<&str>, frame: &Option<String>| {
         let mut text = value.to_string();
         if let Some(unit) = unit {
