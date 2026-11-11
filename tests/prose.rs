@@ -161,17 +161,22 @@ fn lines_starting_with_a_dash_belong_to_the_line_above() {
          강의실이 떨어지면 강의실이 깨진다: 설명\n\
          - 조건문에도 딸린다\n"
     ));
+    let texts = |items: &[kpl::IrItem]| -> Vec<String> {
+        items.iter().map(|item| item.text.clone()).collect()
+    };
     assert_eq!(
-        program.sentences[0].items,
+        texts(&program.sentences[0].items),
         [
             "정원을 넘지 않는지 확인한다",
             "기본요금을 낸다 # 주석 아님",
             "3만 원 영수증을 받는다"
         ]
     );
-    assert_eq!(program.references[0].items, ["신청자만 예약한다"]);
-    assert_eq!(program.texts[0].items, ["적절히 하지 않는다"]);
-    assert_eq!(program.conditionals[0].items, ["조건문에도 딸린다"]);
+    assert_eq!(program.sentences[0].items[2].line, 12);
+    assert_eq!(texts(&program.references[0].items), ["신청자만 예약한다"]);
+    assert_eq!(program.references[0].line, 13);
+    assert_eq!(texts(&program.texts[0].items), ["적절히 하지 않는다"]);
+    assert_eq!(texts(&program.conditionals[0].items), ["조건문에도 딸린다"]);
     assert_eq!(program.conditionals[0].note.as_deref(), Some("설명"));
     // 딸린 줄도 본문이므로 이름을 찾고 점검합니다.
     assert_eq!(

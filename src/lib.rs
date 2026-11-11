@@ -1,4 +1,5 @@
 mod degree;
+pub mod graph;
 mod integer;
 mod parser;
 mod prose;
@@ -15,7 +16,7 @@ use serde::Serialize;
 use solver::{Closure, ORIGIN};
 use syntax::{Axis, Expression, Kind, Role, Statement, Token, Type};
 
-pub const LANGUAGE_VERSION: &str = "0.11";
+pub const LANGUAGE_VERSION: &str = "0.12";
 
 #[derive(Debug)]
 pub struct Diagnostic {
@@ -211,7 +212,14 @@ pub struct IrText {
     pub text: String,
     /// 아래에 `- 글`로 적은 줄들.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<String>,
+    pub items: Vec<IrItem>,
+}
+
+/// `- 글`로 적은 딸린 줄.
+#[derive(Serialize)]
+pub struct IrItem {
+    pub line: usize,
+    pub text: String,
 }
 
 /// `- 글` 줄이 딸리는 곳.
@@ -247,10 +255,11 @@ pub struct IrWarning {
 #[derive(Serialize)]
 pub struct IrReference {
     pub number: u32,
+    pub line: usize,
     pub text: String,
     /// 아래에 `- 글`로 적은 줄들.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<String>,
+    pub items: Vec<IrItem>,
 }
 
 #[derive(Serialize)]
@@ -309,7 +318,7 @@ pub struct IrConditional {
     pub note: Option<String>,
     /// 아래에 `- 글`로 적은 줄들.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<String>,
+    pub items: Vec<IrItem>,
 }
 
 #[derive(Serialize)]
@@ -334,7 +343,7 @@ pub struct IrSentence {
     pub note: Option<String>,
     /// 아래에 `- 글`로 적은 줄들.
     #[serde(skip_serializing_if = "Vec::is_empty")]
-    pub items: Vec<String>,
+    pub items: Vec<IrItem>,
 }
 
 #[derive(Serialize)]
@@ -742,6 +751,7 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 host = Some(Host::Reference(program.references.len()));
                 program.references.push(IrReference {
                     number: n,
+                    line: text.line(),
                     text: text.text,
                     items: Vec::new(),
                 });
@@ -769,7 +779,10 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                     }
                 };
                 passages.push(passage(&text));
-                items.push(text.text);
+                items.push(IrItem {
+                    line: text.line(),
+                    text: text.text,
+                });
             }
             Statement::Sentence {
                 label,

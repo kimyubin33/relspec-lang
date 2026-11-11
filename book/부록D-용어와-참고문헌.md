@@ -9,6 +9,7 @@
 | 가능 | 목표가 일부 해(또는 일부 방식의 세계)에서만 참인 판정 | 7, 13 |
 | 가능 세계 | 모든 미지값에 값을 하나씩 정한 하나의 경우. 13장에서는 방식을 정하지 않은 규칙마다 방식을 하나씩 고른 경우 | 7, 13 |
 | 강도 | 규칙이 성립하는 정도. 결론이 가질 수 있는 최대 정도 | 13 |
+| 구체화 (reification) | 관계나 사건을 하나의 것(점)으로 세워, 거기에 여러 성질을 다는 방법 | 18 |
 | 결합가 (valency) | 동사가 거느리는 필수 성분의 수 (Tesnière) | 8 |
 | 관측 | 미지값의 실제 값을 기록하는 문장 | 7 |
 | 곱 방식 (Larsen) | 결론 = 전제 × 강도. `곱으로` | 13 |
@@ -26,6 +27,7 @@
 | 기호 값 | 미지값이 들어 있어 "상수 + 계수 × 미지값"으로 저장된 값 | 11 |
 | 논항 구조 | 동사마다 반드시 함께 와야 하는 성분의 틀 | 8 |
 | 딸린 줄 | `-`로 시작해 바로 위의 문장·참조·본문에 딸리는 글 한 줄 | 16 |
+| 덩어리 | 연결망에서 선을 따라 서로 닿을 수 있는 점들의 모임. 그래프의 연결 성분 | 18 |
 | 담화 지시체 | 글이 쌓이며 생기는, 지시어가 가리킬 수 있는 대상들 | 9 |
 | 담화 표상 이론 (DRT) | 담화 지시체로 지시어를 설명하는 이론 (Kamp) | 9 |
 | 매개모음 | 받침 뒤에서 어미나 조사 앞에 끼어드는 '으'. 먹으면, 책상으로 | 14 |
@@ -44,6 +46,9 @@
 | 상수 접기 | 컴파일할 때 값을 미리 계산해 두는 것 | 4 |
 | 선언형 언어 | 계산 절차 대신 성립해야 할 관계를 적는 언어 | 1 |
 | 실패로서의 부정 | 증명할 수 없는 것을 거짓으로 다루는 방식 (Clark) | 14 |
+| 연결망 | 명세에 적힌 것을 점으로, 그 관계를 선으로 옮긴 것 | 18 |
+| 언급 | 글에 선언한 이름이 나온 자리. 연결망의 점선 | 17, 18 |
+| 의미망 | 낱말과 개념을 점으로, 관계를 선으로 적는 지식 표현 (Quillian) | 18 |
 | 열린 세계 가정 | 적혀 있지 않은 것은 모른다고 보는 약속 | 14 |
 | 연결어미 | 두 절을 잇는 어미. 조건의 -면 | 14 |
 | 선어말어미 | 어간과 어말어미 사이의 어미. 시제를 나타내는 -었-, -겠- 등 | 11 |
@@ -76,6 +81,7 @@
 | 퍼지 논리 | 참과 거짓 사이의 정도를 다루는 논리 (Zadeh) | 10 |
 | 퍼지 추론 | 정도가 있는 전제와 규칙으로부터 결론의 정도를 구하는 것 | 13 |
 | 하위 호환성 | 새 버전이 이전 버전의 명세와 도구를 깨뜨리지 않는 성질 | 12 |
+| 힘 기반 배치 | 점은 밀어내고 선은 당기는 힘의 균형으로 그래프를 그리는 방법 | 18 |
 | 함의 | 한 문장이 참이면 다른 문장도 반드시 참인 관계. 사실이 전제를 함의하면 전제에 해당 | 6, 14 |
 | 해 | 모든 조건을 만족하는 미지값 할당 | 7 |
 | 활용형 | 동사가 문장에서 바뀐 모양. 했다, 한다, 하겠다 | 8 |
@@ -158,6 +164,13 @@
 - ISO/IEC/IEEE 29148. *Systems and software engineering — Life cycle processes — Requirements engineering*. (요구사항 문장에서 피할 표현)
 - Mavin, A., Wilkinson, P., Harwood, A., & Novak, M. (2009). Easy Approach to Requirements Syntax (EARS). *17th IEEE International Requirements Engineering Conference*.
 - Hopcroft, J. E., Motwani, R., & Ullman, J. D. *Introduction to Automata Theory, Languages, and Computation*. Addison-Wesley. (문맥 자유 문법의 중의성 판정 불가능성)
+
+**18장 연결망**
+
+- Quillian, M. R. (1968). Semantic Memory. In M. Minsky (Ed.), *Semantic Information Processing*. MIT Press.
+- Eades, P. (1984). A Heuristic for Graph Drawing. *Congressus Numerantium*, 42, 149–160.
+- Fruchterman, T. M. J., & Reingold, E. M. (1991). Graph Drawing by Force-directed Placement. *Software: Practice and Experience*, 21(11), 1129–1164.
+- Tarjan, R. E. (1975). Efficiency of a Good But Not Linear Set Union Algorithm. *Journal of the ACM*, 22(2), 215–225.
 
 **2장, 부록 C**
 

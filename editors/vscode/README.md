@@ -12,6 +12,7 @@
 | 정의로 이동 | 이름(조사가 붙어 있어도 됨), 활용형(`눌렀다` → `행위 누르다`), `(참조 1)` → `참조 1:` |
 | 문서 개요 | 선언한 이름과 참조, 이름 붙은 문장의 목록 |
 | 본문 속 이름 | 설명, 참조, `본문:` 줄에 나온 선언한 이름을 변수 색으로 표시합니다(의미 토큰). |
+| 연결망 | "RelSpec: 연결망 보기" 명령이나 편집기 오른쪽 위의 아이콘으로, 이 파일의 연결망을 옆에 엽니다. 저장할 때마다 다시 그리고, 줄 번호를 누르면 그 줄로 갑니다. |
 | 본문 점검 | 정의와 같은 값(`K601`), 기준 없는 낱말(`K602`), 지시어(`K603`), 띄어쓰기(`K604`)를 그 낱말 아래에 경고로 표시합니다. |
 
 색칠은 `syntaxes/kpl.tmLanguage.json`이 맡고, 나머지는 컴파일러에 들어 있는 언어 서버(`kpl lsp`)가 맡습니다. 언어 서버는 Language Server Protocol을 따르므로 LSP를 지원하는 다른 편집기에서도 `kpl lsp`를 실행하도록 설정하면 같은 기능을 쓸 수 있습니다.
@@ -43,7 +44,7 @@ VS Code에서 `editors/vscode` 폴더를 열고 `F5`를 누릅니다("RelSpec �
 
 ```powershell
 npx.cmd --yes @vscode/vsce package --skip-license
-code --install-extension relspec-kpl-0.11.0.vsix
+code --install-extension relspec-kpl-0.12.0.vsix
 ```
 
 파일 이름의 숫자는 `package.json`의 버전입니다. `code` 명령을 찾을 수 없으면 VS Code의 확장 보기에서 `…` 메뉴의 "Install from VSIX…"로 그 파일을 고릅니다. 설치한 뒤 VS Code를 다시 시작하고 `.kpl` 파일을 열면, 창 오른쪽 아래의 언어 표시가 `RelSpec`으로 바뀝니다. macOS와 Linux에서는 `npx.cmd` 대신 `npx`를 씁니다.

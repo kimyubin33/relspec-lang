@@ -3,6 +3,7 @@
 
 const fs = require("fs");
 const path = require("path");
+const { execFile } = require("child_process");
 const vscode = require("vscode");
 const { LanguageClient, TransportKind } = require("vscode-languageclient/node");
 
@@ -55,8 +56,85 @@ async function stop() {
   }
 }
 
+let graphPanel;
+let graphFile;
+
+/** `kpl 그래프 파일 -`을 실행해 연결망 HTML을 받습니다. */
+function renderGraph(file) {
+  return new Promise((resolve, reject) => {
+    execFile(findServer(), ["그래프", file, "-"], { maxBuffer: 64 * 1024 * 1024 }, (error, stdout, stderr) => {
+      if (error) {
+        reject(new Error(stderr.trim() || error.message));
+      } else {
+        resolve(stdout);
+      }
+    });
+  });
+}
+
+async function refreshGraph() {
+  if (!graphPanel || !graphFile) {
+    return;
+  }
+  try {
+    graphPanel.webview.html = await renderGraph(graphFile);
+  } catch (error) {
+    // 오류가 있는 동안에는 마지막으로 성공한 그림을 그대로 둡니다.
+    vscode.window.setStatusBarMessage(`RelSpec 연결망: 오류를 고치면 다시 그립니다 (${error.message})`, 6000);
+  }
+}
+
+async function showGraph() {
+  const editor = vscode.window.activeTextEditor;
+  if (!editor || editor.document.languageId !== "kpl") {
+    vscode.window.showInformationMessage("연결망은 .kpl 파일을 연 상태에서 볼 수 있습니다.");
+    return;
+  }
+  if (editor.document.isUntitled) {
+    vscode.window.showInformationMessage("파일을 먼저 저장하세요.");
+    return;
+  }
+  if (editor.document.isDirty) {
+    await editor.document.save();
+  }
+  graphFile = editor.document.uri.fsPath;
+  if (!graphPanel) {
+    graphPanel = vscode.window.createWebviewPanel("kplGraph", "RelSpec 연결망", vscode.ViewColumn.Beside, {
+      enableScripts: true,
+      retainContextWhenHidden: true,
+    });
+    graphPanel.onDidDispose(() => {
+      graphPanel = undefined;
+    });
+    // 연결망에서 줄 번호를 누르면 그 줄로 갑니다.
+    graphPanel.webview.onDidReceiveMessage(async (message) => {
+      if (message.type === "reveal" && graphFile) {
+        const document = await vscode.workspace.openTextDocument(graphFile);
+        const position = new vscode.Position(Math.max(0, message.line - 1), 0);
+        await vscode.window.showTextDocument(document, {
+          viewColumn: vscode.ViewColumn.One,
+          selection: new vscode.Range(position, position),
+        });
+      }
+    });
+  }
+  graphPanel.title = `연결망: ${path.basename(graphFile)}`;
+  try {
+    graphPanel.webview.html = await renderGraph(graphFile);
+    graphPanel.reveal(vscode.ViewColumn.Beside, true);
+  } catch (error) {
+    vscode.window.showErrorMessage(`연결망을 만들지 못했습니다. 오류를 먼저 고치세요. (${error.message})`);
+  }
+}
+
 async function activate(context) {
   context.subscriptions.push(
+    vscode.commands.registerCommand("kpl.showGraph", showGraph),
+    vscode.workspace.onDidSaveTextDocument((document) => {
+      if (graphPanel && document.uri.fsPath === graphFile) {
+        refreshGraph();
+      }
+    }),
     vscode.commands.registerCommand("kpl.restartServer", async () => {
       await stop();
       await start();
