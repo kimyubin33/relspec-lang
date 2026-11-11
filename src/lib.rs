@@ -757,11 +757,10 @@ pub fn compile(source: &str) -> Result<CompiledProgram, Diagnostic> {
                 program.scenes.push(IrScene {
                     name: name.text.clone(),
                     line: name.line(),
-                    fill: if total_weight == 0 {
-                        100
-                    } else {
-                        filled_weight * 100 / total_weight
-                    },
+                    // 차원이 하나도 없는 장면은 빈칸도 없으므로 100입니다.
+                    fill: (filled_weight * 100)
+                        .checked_div(total_weight)
+                        .unwrap_or(100),
                     items,
                 });
             }
@@ -1816,8 +1815,11 @@ struct WordDimension {
     kind: Option<Type>,
 }
 
+/// 미리 정의해 둔 낱말의 차원들: (이름, 타입).
+type BuiltinDimensions = &'static [(&'static str, Option<Type>)];
+
 /// 미리 정의해 둔 낱말과 그 차원.
-const BUILTIN_WORDS: &[(&str, &[(&str, Option<Type>)])] = &[
+const BUILTIN_WORDS: &[(&str, BuiltinDimensions)] = &[
     (
         "보는자리",
         &[

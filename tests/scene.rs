@@ -121,7 +121,7 @@ fn scene_mistakes_are_reported_where_they_are() {
     );
     assert_eq!(
         fails(&format!("{WORDS}장면 방\n  책: 색 파랑, 색 빨강\n")),
-        ("K703", 5, 13)
+        ("K703", 5, 12)
     );
     // 꼭 적어야 하는 차원
     assert_eq!(
