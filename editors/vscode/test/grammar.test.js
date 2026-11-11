@@ -25,7 +25,13 @@ const source = `# 주석입니다
 컵이 70% 떨어졌다   # 줄 끝 주석
 그것이 250 밀리초 == 시작
 참조 1: 본문 # 이것은 주석이 아님
-시간순서 정의초 참조표`;
+시간순서 정의초 참조표
+대상 조사자, 조사범위
+행위 확인하다 (확인했다), 조사하다: 주체, 대상
+미지 가, 나: 시간
+조건 요금 >= 0 초
+목표 넘침 = 요금 == 0 초
+단위 원`;
 
 // [줄 번호(0부터), 낱말, 들어 있어야 하는 범위 이름] 또는 [줄, 낱말, null] = 특별한 범위가 없어야 함
 const expectations = [
@@ -66,6 +72,20 @@ const expectations = [
   [9, " 본문 # 이것은 주석이 아님", "string.unquoted.reference"],
   // 예약어를 포함한 긴 이름은 색칠하지 않습니다.
   [10, "시간순서 정의초 참조표", null],
+  // 쉼표로 나눈 이름은 모두 선언한 이름입니다.
+  [11, "조사자", "entity.name.function"],
+  [11, "조사범위", "entity.name.function"],
+  [12, "확인하다", "entity.name.function"],
+  [12, "조사하다", "entity.name.function"],
+  [12, "확인했다", "meta.forms"],
+  [13, "가", "entity.name.function"],
+  [13, "나", "entity.name.function"],
+  [13, "시간", "support.type"],
+  // 이름 없는 조건의 첫 낱말은 선언이 아닙니다.
+  [14, "조건", "keyword.control.declaration"],
+  [14, "요금", null],
+  [15, "넘침", "entity.name.function"],
+  [16, "원", "entity.name.function"],
 ];
 
 registry.loadGrammar("source.kpl").then((grammar) => {

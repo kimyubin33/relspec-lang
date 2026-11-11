@@ -8,7 +8,11 @@ const USAGE: &str = "KPL 0.10\n사용법: kpl 검사 <파일.kpl> | kpl 컴파�
 fn main() -> ExitCode {
     let args: Vec<_> = env::args_os().skip(1).collect();
     // 언어 서버: 편집기가 실행합니다. 표준 입출력으로 LSP 메시지를 주고받습니다.
-    if args.len() == 1 && matches!(args[0].to_str(), Some("lsp" | "서버")) {
+    // VS Code는 `kpl lsp --stdio`처럼 통신 방식을 알리는 인자를 덧붙이므로, 첫 인자만 봅니다.
+    if matches!(
+        args.first().and_then(|arg| arg.to_str()),
+        Some("lsp" | "서버")
+    ) {
         return lsp::run();
     }
     let [command, filename] = args.as_slice() else {

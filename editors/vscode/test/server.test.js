@@ -15,7 +15,8 @@ if (!binary) {
   console.error("kpl 실행 파일이 없습니다. 저장소에서 cargo build --release를 실행하세요.");
   process.exit(1);
 }
-const server = spawn(binary, ["lsp"]);
+// VS Code의 언어 클라이언트가 실행하는 것과 같은 인자입니다.
+const server = spawn(binary, ["lsp", "--stdio"]);
 const connection = rpc.createMessageConnection(
   new rpc.StreamMessageReader(server.stdout),
   new rpc.StreamMessageWriter(server.stdin)

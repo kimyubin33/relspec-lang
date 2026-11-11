@@ -20,7 +20,8 @@ const URI: &str = "file:///예제.kpl";
 impl Client {
     fn start() -> Self {
         let mut child = Command::new(env!("CARGO_BIN_EXE_kpl"))
-            .arg("lsp")
+            // VS Code의 언어 클라이언트는 표준 입출력으로 연결할 때 `--stdio`를 덧붙입니다.
+            .args(["lsp", "--stdio"])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::null())

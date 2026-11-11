@@ -3,32 +3,66 @@
   "name": "RelSpec",
   "scopeName": "source.kpl",
   "patterns": [
-    { "include": "#reference-definition" },
-    { "include": "#body-text" },
-    { "include": "#comment" },
-    { "include": "#declaration" },
-    { "include": "#label" },
-    { "include": "#citation" },
-    { "include": "#expression" }
+    {
+      "include": "#reference-definition"
+    },
+    {
+      "include": "#body-text"
+    },
+    {
+      "include": "#comment"
+    },
+    {
+      "include": "#declaration-list"
+    },
+    {
+      "include": "#declaration-optional"
+    },
+    {
+      "include": "#declaration"
+    },
+    {
+      "include": "#label"
+    },
+    {
+      "include": "#citation"
+    },
+    {
+      "include": "#expression"
+    }
   ],
   "repository": {
     "reference-definition": {
       "comment": "참조 1: 본문. 본문 안의 #은 주석이 아닙니다.",
       "match": "^\\s*(참조)\\s+([0-9]+)\\s*(:)(.*)$",
       "captures": {
-        "1": { "name": "keyword.control.declaration.kpl" },
-        "2": { "name": "constant.numeric.reference.kpl" },
-        "3": { "name": "punctuation.separator.kpl" },
-        "4": { "name": "string.unquoted.reference.kpl" }
+        "1": {
+          "name": "keyword.control.declaration.kpl"
+        },
+        "2": {
+          "name": "constant.numeric.reference.kpl"
+        },
+        "3": {
+          "name": "punctuation.separator.kpl"
+        },
+        "4": {
+          "name": "string.unquoted.reference.kpl"
+        }
       }
     },
     "body-text": {
       "comment": "본문: 글. 글 안의 #은 주석이 아닙니다.",
       "match": "^\\s*(본문)\\s*(:)(.*)$",
       "captures": {
-        "1": { "name": "keyword.control.declaration.kpl" },
-        "2": { "name": "punctuation.separator.kpl" },
-        "3": { "name": "string.unquoted.body.kpl" }
+        "1": {
+          "name": "keyword.control.declaration.kpl"
+        },
+        "2": {
+          "name": "punctuation.separator.kpl"
+        },
+        "3": {
+          "name": "string.unquoted.body.kpl"
+        }
       }
     },
     "comment": {
@@ -36,19 +70,27 @@
       "name": "comment.line.number-sign.kpl"
     },
     "declaration": {
-      "comment": "줄을 시작하는 낱말과 선언하는 이름",
-      "match": "^\\s*(정의|검사|기준|대상|단위|사건|미지|조건|목표|관측|행위|규칙)(?:\\s+([\\p{L}_][\\p{L}\\p{N}\\p{M}_]*))?(?![\\p{L}\\p{N}_])",
+      "comment": "줄을 시작하는 낱말과 선언하는 이름 하나",
+      "match": "^\\s*(정의|기준|사건|관측|규칙)(?:\\s+([\\p{L}_][\\p{L}\\p{N}\\p{M}_]*))?(?![\\p{L}\\p{N}\\p{M}_])",
       "captures": {
-        "1": { "name": "keyword.control.declaration.kpl" },
-        "2": { "name": "entity.name.function.kpl" }
+        "1": {
+          "name": "keyword.control.declaration.kpl"
+        },
+        "2": {
+          "name": "entity.name.function.kpl"
+        }
       }
     },
     "label": {
       "comment": "이름 붙은 문장: 깨짐: 컵이 떨어지면 ...",
       "match": "^\\s*([\\p{L}_][\\p{L}\\p{N}\\p{M}_]*)\\s*(:)",
       "captures": {
-        "1": { "name": "entity.name.function.kpl" },
-        "2": { "name": "punctuation.separator.kpl" }
+        "1": {
+          "name": "entity.name.function.kpl"
+        },
+        "2": {
+          "name": "punctuation.separator.kpl"
+        }
       }
     },
     "citation": {
@@ -60,11 +102,18 @@
         {
           "match": "(참조)\\s+([0-9]+)",
           "captures": {
-            "1": { "name": "keyword.other.reference.kpl" },
-            "2": { "name": "constant.numeric.reference.kpl" }
+            "1": {
+              "name": "keyword.other.reference.kpl"
+            },
+            "2": {
+              "name": "constant.numeric.reference.kpl"
+            }
           }
         },
-        { "match": ",", "name": "punctuation.separator.kpl" }
+        {
+          "match": ",",
+          "name": "punctuation.separator.kpl"
+        }
       ]
     },
     "expression": {
@@ -73,8 +122,12 @@
           "comment": "수와 단위, 정도",
           "match": "(?<![\\p{L}\\p{N}_])([0-9]+)\\s*(밀리초|초|밀리미터|센티미터|미터|%)?(?![\\p{L}\\p{N}_])",
           "captures": {
-            "1": { "name": "constant.numeric.kpl" },
-            "2": { "name": "keyword.other.unit.kpl" }
+            "1": {
+              "name": "constant.numeric.kpl"
+            },
+            "2": {
+              "name": "keyword.other.unit.kpl"
+            }
           }
         },
         {
@@ -123,6 +176,49 @@
           "name": "punctuation.separator.kpl"
         }
       ]
+    },
+    "declaration-list": {
+      "comment": "쉼표로 여러 이름을 선언하는 줄. ':'나 '=' 앞까지의 이름이 모두 선언입니다. 괄호 안은 행위의 활용형입니다.",
+      "begin": "^\\s*(대상|단위|미지|행위)(?![\\p{L}\\p{N}\\p{M}_])",
+      "beginCaptures": {
+        "1": {
+          "name": "keyword.control.declaration.kpl"
+        }
+      },
+      "end": "(?=[:=#]|$)",
+      "patterns": [
+        {
+          "begin": "\\(",
+          "end": "\\)|(?=$)",
+          "name": "meta.forms.kpl",
+          "patterns": [
+            {
+              "match": ",",
+              "name": "punctuation.separator.kpl"
+            }
+          ]
+        },
+        {
+          "match": "[\\p{L}_][\\p{L}\\p{N}\\p{M}_]*",
+          "name": "entity.name.function.kpl"
+        },
+        {
+          "match": ",",
+          "name": "punctuation.separator.kpl"
+        }
+      ]
+    },
+    "declaration-optional": {
+      "comment": "검사·조건·목표. 이름은 바로 뒤에 '='(비교 '=='가 아닌)가 올 때만 이름입니다.",
+      "match": "^\\s*(검사|조건|목표)(?![\\p{L}\\p{N}\\p{M}_])(?:\\s+([\\p{L}_][\\p{L}\\p{N}\\p{M}_]*)(?=\\s*=(?!=)))?",
+      "captures": {
+        "1": {
+          "name": "keyword.control.declaration.kpl"
+        },
+        "2": {
+          "name": "entity.name.function.kpl"
+        }
+      }
     }
   }
 }
